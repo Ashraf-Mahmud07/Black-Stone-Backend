@@ -15,15 +15,15 @@ pnpm start:dev            # http://localhost:5000
 pnpm seed                 # admin + sample categories, products, variants, reviews
 ```
 
-| Script | Purpose |
-| --- | --- |
-| `pnpm start:dev` | Development server with reload. |
-| `pnpm build` / `pnpm start:prod` | Compile to `dist/` and run it. |
-| `pnpm type-check` | TypeScript without emitting. |
-| `pnpm lint` / `pnpm lint:fix` | ESLint. |
-| `pnpm test` | Unit tests (Vitest). |
-| `pnpm seed` | Seed admin and development data. |
-| `pnpm swagger:json` | Export the OpenAPI document to `docs/openapi.json`. |
+| Script                           | Purpose                                             |
+| -------------------------------- | --------------------------------------------------- |
+| `pnpm start:dev`                 | Development server with reload.                     |
+| `pnpm build` / `pnpm start:prod` | Compile to `dist/` and run it.                      |
+| `pnpm type-check`                | TypeScript without emitting.                        |
+| `pnpm lint` / `pnpm lint:fix`    | ESLint.                                             |
+| `pnpm test`                      | Unit tests (Vitest).                                |
+| `pnpm seed`                      | Seed admin and development data.                    |
+| `pnpm swagger:json`              | Export the OpenAPI document to `docs/openapi.json`. |
 
 The admin account is created from `SUPER_ADMIN_EMAIL` / `SUPER_ADMIN_PASSWORD` on boot.
 Setting `SEED_DEV_DATA=true` also seeds the sample catalog at startup (never in production).
@@ -93,8 +93,9 @@ written to the server disk. Uploads go through `IStorageProvider`
 ([src/app/utils/storage.ts](src/app/utils/storage.ts)), so no service or controller knows about
 the provider - replacing that one file is all another provider would take.
 
-Required environment: `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`
-(the server refuses to start without them) and the optional `CLOUDINARY_FOLDER` base folder.
+Required environment: `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` and the
+optional `CLOUDINARY_FOLDER` base folder. The provider is created on first use, so a missing
+credential fails the upload endpoints with a clear message instead of taking down the whole API.
 
 - **Product images** - up to 12 per product, JPEG/PNG/WEBP, `MAX_UPLOAD_SIZE_MB` (default 5MB).
 - **Product videos** - up to 12 per product, MP4/WEBM/MOV, `MAX_VIDEO_UPLOAD_SIZE_MB` (default 50MB).
@@ -106,3 +107,46 @@ Required environment: `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY
 
 Stored keys have the form `<deliveryType>:<resourceType>:<publicId>` so a delete or signed url can
 address the asset without extra lookups.
+
+## Deployment (Vercel)
+
+The API runs as a single Vercel serverless function.
+
+| File                           | Role                                                             |
+| ------------------------------ | ---------------------------------------------------------------- |
+| [api/index.ts](api/index.ts)   | Function entry - exports the Express app as the request handler. |
+| [vercel.json](vercel.json)     | Rewrites every path to the function and sets its runtime limits. |
+| [src/server.ts](src/server.ts) | Local / long running server only (`app.listen`, seeding).        |
+
+Vercel compiles `api/index.ts` itself, so nothing is built into `dist/` for the deployment and
+`dist/` stays git-ignored. `buildCommand` runs `type-check:all`, which type-checks `src` and `api`
+together, so a type error fails the deploy instead of shipping.
+
+### Required environment variables on Vercel
+
+Set these in **Project → Settings → Environment Variables** (Production and Preview):
+
+```
+DATABASE_URL           JWT_SECRET               JWT_REFRESH_SECRET
+JWT_EXPIRATION         JWT_REFRESH_EXPIRATION   NODE_ENV=production
+SUPER_ADMIN_EMAIL      SUPER_ADMIN_PASSWORD     CORS_ORIGINS
+CLOUDINARY_CLOUD_NAME  CLOUDINARY_API_KEY       CLOUDINARY_API_SECRET
+BKASH_MERCHANT_NUMBER  NAGAD_MERCHANT_NUMBER    DEFAULT_DELIVERY_CHARGE
+```
+
+`.env` is git-ignored and never reaches Vercel - the dashboard is the only source of configuration.
+Set `CORS_ORIGINS` to the deployed frontend origin, and add `SWAGGER_USER` / `SWAGGER_PASSWORD` to
+put the documentation behind basic auth (or `SWAGGER_ENABLED=false` to disable it in production).
+
+### Serverless notes
+
+- **Database** - [connectToDatabase](src/app/DB/connect.ts) caches the mongoose connection on
+  `globalThis` and [ensureDatabase](src/app/middlewares/ensureDatabase.ts) awaits it before the
+  routes run, so a cold instance connects once instead of per request. Use a MongoDB Atlas cluster
+  that allows connections from anywhere (`0.0.0.0/0`), since Vercel function IPs are not fixed.
+- **Seeding does not run on Vercel.** The function never executes `src/server.ts`. Seed a deployed
+  database from your machine with `DATABASE_URL=<production url> pnpm seed`.
+- **Rate limiting** is in-memory, so counters are per function instance rather than global. Move to
+  a shared store if you need strict limits.
+- **Uploads** stream straight to Cloudinary, so nothing is written to the (read-only) function
+  filesystem.

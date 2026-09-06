@@ -175,7 +175,28 @@ class CloudinaryStorageProvider implements IStorageProvider {
 /** Exposed for tests; the application uses the shared `storage` instance below. */
 export const createStorageProvider = (): IStorageProvider => new CloudinaryStorageProvider();
 
-export const storage: IStorageProvider = createStorageProvider();
+let provider: IStorageProvider | null = null;
+
+/**
+ * The provider is created on first use rather than at import time. On a serverless platform
+ * an import time failure would take down every route, so a missing credential surfaces as a
+ * clear error on the upload endpoints instead, leaving the rest of the API working.
+ */
+const getProvider = (): IStorageProvider => {
+	if (!provider) provider = createStorageProvider();
+	return provider;
+};
+
+// the methods are async so a missing credential rejects the promise instead of throwing
+// synchronously - callers like `storage.remove(key).catch(...)` rely on that.
+export const storage: IStorageProvider = {
+	get name() {
+		return getProvider().name;
+	},
+	save: async (file, options) => getProvider().save(file, options),
+	remove: async (key) => getProvider().remove(key),
+	locate: async (key) => getProvider().locate(key)
+};
 
 export const StorageFolders = {
 	products: 'products',

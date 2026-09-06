@@ -4,6 +4,7 @@ import express, { Application, Request, Response } from 'express';
 import helmet from 'helmet';
 import config from './app/config';
 import setupSwagger from './app/docs';
+import ensureDatabase from './app/middlewares/ensureDatabase';
 import globalErrorHandler from './app/middlewares/globalErrorHandler';
 import notFound from './app/middlewares/notFound';
 import { apiLimiter } from './app/middlewares/rateLimiter';
@@ -34,7 +35,8 @@ app.use(sanitizeRequest);
 // OpenAPI document at the same path with a .json suffix.
 setupSwagger(app);
 
-app.use(API_PREFIX, apiLimiter, router);
+// serverless instances start without a connection - this establishes (or reuses) it
+app.use(API_PREFIX, apiLimiter, ensureDatabase, router);
 
 app.get('/', (req: Request, res: Response) => {
 	res.send({

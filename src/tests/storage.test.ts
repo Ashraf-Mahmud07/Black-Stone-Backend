@@ -50,14 +50,25 @@ describe('cloudinary keys', () => {
 	});
 });
 
-describe('createStorageProvider', () => {
-	it('refuses to start without Cloudinary credentials', async () => {
+describe('storage provider', () => {
+	it('refuses to build the provider without Cloudinary credentials', async () => {
 		vi.stubEnv('CLOUDINARY_CLOUD_NAME', '');
 		vi.stubEnv('CLOUDINARY_API_KEY', '');
 		vi.stubEnv('CLOUDINARY_API_SECRET', '');
 		vi.resetModules();
 
-		await expect(import('../app/utils/storage')).rejects.toThrowError(/CLOUDINARY_CLOUD_NAME/);
+		// importing must stay safe - a serverless instance would otherwise fail to boot at all
+		const storageModule = await import('../app/utils/storage');
+		expect(() => storageModule.createStorageProvider()).toThrowError(/CLOUDINARY_CLOUD_NAME/);
+
+		// the failure surfaces on the upload path instead
+		await expect(
+			storageModule.storage.save(
+				{ buffer: Buffer.from('x'), originalname: 'a.png', mimetype: 'image/png', size: 1 },
+				{ folder: 'products' }
+			)
+		).rejects.toThrowError(/CLOUDINARY_CLOUD_NAME/);
+
 		vi.unstubAllEnvs();
 	});
 });

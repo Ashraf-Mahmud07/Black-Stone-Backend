@@ -1,14 +1,14 @@
 /* eslint-disable */
 
-import mongoose from 'mongoose';
 import app from './app';
 import config from './app/config/index';
 import seedSuperAdmin from './app/DB';
+import connectToDatabase from './app/DB/connect';
 import seedDevData from './app/DB/devSeed';
 
 async function main() {
 	try {
-		await mongoose.connect(config.database_url as string);
+		await connectToDatabase();
 		await seedSuperAdmin();
 
 		// optional development data (categories, products, variants, reviews)

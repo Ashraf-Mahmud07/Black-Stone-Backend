@@ -1,15 +1,18 @@
 {
-  "version": 2,
-  "builds": [
-    {
-      "src": "dist/server.js",
-      "use": "@vercel/node"
-    }
-  ],
-  "routes": [
-    {
-      "src": "/(.*)",
-      "dest": "dist/server.js"
-    }
-  ]
+	"$schema": "https://openapi.vercel.sh/vercel.json",
+	"buildCommand": "npm run type-check:all",
+	"outputDirectory": "public",
+	"functions": {
+		"api/index.ts": {
+			"memory": 1024,
+			"maxDuration": 30,
+			"includeFiles": "node_modules/swagger-ui-dist/**"
+		}
+	},
+	"rewrites": [
+		{
+			"source": "/(.*)",
+			"destination": "/api/index"
+		}
+	]
 }
