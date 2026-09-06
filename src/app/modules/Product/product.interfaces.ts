@@ -43,6 +43,8 @@ export type TProduct = {
 	categoryId: string;
 	category?: TCategorySummary;
 	images: TImage[];
+	/** Product videos (Cloudinary when that provider is configured). */
+	videos: TImage[];
 	price: number;
 	discountPrice?: number;
 	sku: string;

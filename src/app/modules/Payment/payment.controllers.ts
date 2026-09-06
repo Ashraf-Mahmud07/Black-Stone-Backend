@@ -68,10 +68,18 @@ const refundPayment: RequestHandler = catchAsync(async (req, res) => {
 	});
 });
 
-/** Screenshots are streamed through this authorised endpoint - they are never public files. */
+/**
+ * Screenshots are read through this authorised endpoint - they are never public files.
+ * Local storage streams the file; Cloudinary redirects to a signed, private delivery url.
+ */
 const getScreenshot: RequestHandler = catchAsync(async (req, res) => {
 	const location = await PaymentServices.getScreenshotLocation(req.params.id, req.user);
-	res.sendFile(location);
+
+	if (location.kind === 'path') {
+		res.sendFile(location.path);
+		return;
+	}
+	res.redirect(httpStatus.FOUND, location.url);
 });
 
 const PaymentControllers = {

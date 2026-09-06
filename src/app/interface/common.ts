@@ -26,10 +26,23 @@ export type TSortOrder = 'asc' | 'desc';
  */
 export type TId = string;
 
-/** Generic stored image reference (url + storage key so the file can be removed later). */
+/**
+ * Generic stored media reference (url + storage key so the file can be removed later).
+ * Used for images and videos alike - `resourceType` says which one it is.
+ */
 export type TImage = {
 	url: string;
 	key?: string;
 	alt?: string;
 	isPrimary?: boolean;
+	resourceType?: 'image' | 'video';
+	/** Poster frame for videos. */
+	thumbnailUrl?: string;
+	width?: number;
+	height?: number;
+	/** Video length in seconds. */
+	duration?: number;
 };
+
+/** Alias used where a value can be an image or a video. */
+export type TMedia = TImage;

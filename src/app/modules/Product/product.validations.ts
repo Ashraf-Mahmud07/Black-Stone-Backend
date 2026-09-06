@@ -99,13 +99,20 @@ const removeImageValidation = z.object({
 	})
 });
 
+const removeVideoValidation = z.object({
+	body: z.object({
+		url: z.string({ required_error: 'Video url is required!' }).url('Invalid video url!')
+	})
+});
+
 const ProductValidations = {
 	createProductValidation,
 	updateProductValidation,
 	updateStockValidation,
 	createVariantValidation,
 	updateVariantValidation,
-	removeImageValidation
+	removeImageValidation,
+	removeVideoValidation
 };
 
 export default ProductValidations;

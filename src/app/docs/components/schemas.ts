@@ -71,6 +71,7 @@ const PaginationMeta: TSchemaObject = {
 
 const Image: TSchemaObject = {
 	type: 'object',
+	description: 'Stored media reference. Files live on the configured storage provider (local disk or Cloudinary).',
 	properties: {
 		url: { type: 'string', format: 'uri', example: 'http://localhost:5000/uploads/products/1712345678-ab12cd34.png' },
 		key: {
@@ -79,7 +80,17 @@ const Image: TSchemaObject = {
 			example: 'products/1712345678-ab12cd34.png'
 		},
 		alt: { type: 'string', example: 'Premium jersey hijab in black' },
-		isPrimary: { type: 'boolean', example: true }
+		isPrimary: { type: 'boolean', example: true },
+		resourceType: { type: 'string', enum: ['image', 'video'], default: 'image', example: 'image' },
+		thumbnailUrl: {
+			type: 'string',
+			format: 'uri',
+			description: 'Poster frame, present for videos stored on Cloudinary.',
+			example: 'https://res.cloudinary.com/demo/video/upload/black-stone/products/clip.jpg'
+		},
+		width: { type: 'integer', example: 1200 },
+		height: { type: 'integer', example: 1600 },
+		duration: { type: 'number', description: 'Video length in seconds.', example: 12.4 }
 	},
 	required: ['url']
 };
@@ -264,6 +275,7 @@ const Product: TSchemaObject = {
 		// present on every read endpoint; absent on the few write responses that skip population
 		category: ref('CategorySummary'),
 		images: { type: 'array', items: ref('Image') },
+		videos: { type: 'array', items: ref('Image'), description: 'Product videos (max 3).' },
 		price: { ...money, example: 850 },
 		discountPrice: { ...money, nullable: true, example: 720, description: 'Always lower than `price` when present.' },
 		sku: { type: 'string', example: 'HIJAB-JRSY01' },
@@ -296,6 +308,7 @@ const Product: TSchemaObject = {
 		'description',
 		'categoryId',
 		'images',
+		'videos',
 		'price',
 		'sku',
 		'variants',

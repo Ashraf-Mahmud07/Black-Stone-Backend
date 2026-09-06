@@ -45,6 +45,7 @@ const toProduct = (doc: TProductDocument): TProduct => {
 			? { id: String(category?._id), name: category?.name as string, slug: category?.slug as string }
 			: undefined,
 		images: doc.images ?? [],
+		videos: doc.videos ?? [],
 		price: doc.price,
 		discountPrice: doc.discountPrice,
 		sku: doc.sku,
@@ -244,6 +245,18 @@ const removeImage = async (id: string, imageUrl: string): Promise<TProduct | nul
 	return findById(id);
 };
 
+const addVideos = async (id: string, videos: TImage[]): Promise<TProduct | null> => {
+	if (!isValidId(id)) return null;
+	await Product.updateOne({ _id: id, isDeleted: false }, { $push: { videos: { $each: videos } } });
+	return findById(id);
+};
+
+const removeVideo = async (id: string, videoUrl: string): Promise<TProduct | null> => {
+	if (!isValidId(id)) return null;
+	await Product.updateOne({ _id: id, isDeleted: false }, { $pull: { videos: { url: videoUrl } } });
+	return findById(id);
+};
+
 // ---------------------------------------------------------------------------
 // inventory
 // ---------------------------------------------------------------------------
@@ -366,6 +379,8 @@ const ProductRepository = {
 	replaceVariants,
 	addImages,
 	removeImage,
+	addVideos,
+	removeVideo,
 	reserveStock,
 	releaseStock,
 	adjustStock,

@@ -25,6 +25,7 @@ export type TProductDocument = {
 	shortDescription?: string;
 	category: Types.ObjectId | { _id: unknown; name: string; slug: string };
 	images: TImage[];
+	videos: TImage[];
 	price: number;
 	discountPrice?: number;
 	sku: string;
@@ -107,6 +108,7 @@ const productSchema = new Schema<TProductDocument>(
 			index: true
 		},
 		images: { type: [ImageSchema], default: [] },
+		videos: { type: [ImageSchema], default: [] },
 		price: {
 			type: Number,
 			required: [true, 'Product price is required!'],

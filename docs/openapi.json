@@ -1617,6 +1617,7 @@
                           "isActive": true
                         }
                       ],
+                      "videos": [],
                       "specifications": [
                         {
                           "key": "Fabric",
@@ -1874,6 +1875,7 @@
                         "isActive": true
                       }
                     ],
+                    "videos": [],
                     "specifications": [
                       {
                         "key": "Fabric",
@@ -2011,6 +2013,7 @@
                         "isActive": true
                       }
                     ],
+                    "videos": [],
                     "specifications": [
                       {
                         "key": "Fabric",
@@ -2531,13 +2534,192 @@
         }
       }
     },
+    "/api/products/{id}/videos": {
+      "post": {
+        "tags": [
+          "Products"
+        ],
+        "summary": "Upload product videos",
+        "description": "**Admin.** `multipart/form-data` upload of up to 3 videos (MP4, WEBM, MOV, max 50MB each). Files are stored on the configured storage provider; with Cloudinary a poster frame is returned as `thumbnailUrl` together with `width`, `height` and `duration`.",
+        "operationId": "addProductVideos",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IdParam"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/ProductVideosUpload"
+              },
+              "encoding": {
+                "videos": {
+                  "contentType": "video/mp4, video/webm, video/quicktime"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Product videos uploaded successfully!",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Product videos uploaded successfully!"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/Product"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "No file supplied, unsupported file type, file too large, or the 3 video limit reached.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "success": false,
+                  "message": "Only MP4, WEBM and MOV videos are allowed!",
+                  "errorSources": [
+                    {
+                      "path": "",
+                      "message": "Only MP4, WEBM and MOV videos are allowed!"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Products"
+        ],
+        "summary": "Remove a product video",
+        "description": "**Admin.** Removes the video from the product and deletes the stored file.",
+        "operationId": "removeProductVideo",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IdParam"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RemoveProductVideoRequest"
+              },
+              "example": {
+                "url": "https://res.cloudinary.com/demo/video/upload/black-stone/products/clip.mp4"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Product video removed successfully!",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Product video removed successfully!"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/Product"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      }
+    },
     "/api/products/{id}/images": {
       "post": {
         "tags": [
           "Products"
         ],
         "summary": "Upload product images",
-        "description": "**Admin.** `multipart/form-data` upload of up to 8 images (JPEG, PNG, WEBP, max 5MB each). The first image of an empty gallery becomes the primary image. Files are served publicly from `/uploads/products`.",
+        "description": "**Admin.** `multipart/form-data` upload of up to 8 images (JPEG, PNG, WEBP, max 5MB each). The first image of an empty gallery becomes the primary image. Files go to the configured storage provider - Cloudinary (secure CDN url) or the local disk, served from `/uploads/products`.",
         "operationId": "addProductImages",
         "security": [
           {
@@ -4852,7 +5034,7 @@
           "Payments"
         ],
         "summary": "Download a payment screenshot",
-        "description": "**Admin or the customer who owns the order.** Payment screenshots are stored outside the public upload directory and can only be read through this endpoint. Returns the raw image file.",
+        "description": "**Admin or the customer who owns the order.** Payment screenshots are never publicly reachable. With local storage the image is streamed from this endpoint; with Cloudinary the screenshot is stored as a private (authenticated) asset and this endpoint answers with a 302 redirect to a signed, short lived delivery url. Follow redirects when fetching it.",
         "operationId": "getPaymentScreenshot",
         "security": [
           {
@@ -4866,7 +5048,7 @@
         ],
         "responses": {
           "200": {
-            "description": "The screenshot image.",
+            "description": "The screenshot image (local storage provider).",
             "content": {
               "image/jpeg": {
                 "schema": {
@@ -4887,6 +5069,9 @@
                 }
               }
             }
+          },
+          "302": {
+            "description": "Redirect to a signed private Cloudinary url (Cloudinary storage provider)."
           },
           "401": {
             "$ref": "#/components/responses/Unauthorized"
@@ -5951,6 +6136,7 @@
       },
       "Image": {
         "type": "object",
+        "description": "Stored media reference. Files live on the configured storage provider (local disk or Cloudinary).",
         "properties": {
           "url": {
             "type": "string",
@@ -5969,6 +6155,34 @@
           "isPrimary": {
             "type": "boolean",
             "example": true
+          },
+          "resourceType": {
+            "type": "string",
+            "enum": [
+              "image",
+              "video"
+            ],
+            "default": "image",
+            "example": "image"
+          },
+          "thumbnailUrl": {
+            "type": "string",
+            "format": "uri",
+            "description": "Poster frame, present for videos stored on Cloudinary.",
+            "example": "https://res.cloudinary.com/demo/video/upload/black-stone/products/clip.jpg"
+          },
+          "width": {
+            "type": "integer",
+            "example": 1200
+          },
+          "height": {
+            "type": "integer",
+            "example": 1600
+          },
+          "duration": {
+            "type": "number",
+            "description": "Video length in seconds.",
+            "example": 12.4
           }
         },
         "required": [
@@ -6267,6 +6481,7 @@
           },
           "image": {
             "type": "object",
+            "description": "Stored media reference. Files live on the configured storage provider (local disk or Cloudinary).",
             "properties": {
               "url": {
                 "type": "string",
@@ -6285,6 +6500,34 @@
               "isPrimary": {
                 "type": "boolean",
                 "example": true
+              },
+              "resourceType": {
+                "type": "string",
+                "enum": [
+                  "image",
+                  "video"
+                ],
+                "default": "image",
+                "example": "image"
+              },
+              "thumbnailUrl": {
+                "type": "string",
+                "format": "uri",
+                "description": "Poster frame, present for videos stored on Cloudinary.",
+                "example": "https://res.cloudinary.com/demo/video/upload/black-stone/products/clip.jpg"
+              },
+              "width": {
+                "type": "integer",
+                "example": 1200
+              },
+              "height": {
+                "type": "integer",
+                "example": 1600
+              },
+              "duration": {
+                "type": "number",
+                "description": "Video length in seconds.",
+                "example": 12.4
               }
             },
             "required": [
@@ -6444,6 +6687,7 @@
           },
           "image": {
             "type": "object",
+            "description": "Stored media reference. Files live on the configured storage provider (local disk or Cloudinary).",
             "properties": {
               "url": {
                 "type": "string",
@@ -6462,6 +6706,34 @@
               "isPrimary": {
                 "type": "boolean",
                 "example": true
+              },
+              "resourceType": {
+                "type": "string",
+                "enum": [
+                  "image",
+                  "video"
+                ],
+                "default": "image",
+                "example": "image"
+              },
+              "thumbnailUrl": {
+                "type": "string",
+                "format": "uri",
+                "description": "Poster frame, present for videos stored on Cloudinary.",
+                "example": "https://res.cloudinary.com/demo/video/upload/black-stone/products/clip.jpg"
+              },
+              "width": {
+                "type": "integer",
+                "example": 1200
+              },
+              "height": {
+                "type": "integer",
+                "example": 1600
+              },
+              "duration": {
+                "type": "number",
+                "description": "Video length in seconds.",
+                "example": 12.4
               }
             },
             "required": [
@@ -6522,6 +6794,13 @@
             "items": {
               "$ref": "#/components/schemas/Image"
             }
+          },
+          "videos": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Image"
+            },
+            "description": "Product videos (max 3)."
           },
           "price": {
             "type": "number",
@@ -6640,6 +6919,7 @@
           "description",
           "categoryId",
           "images",
+          "videos",
           "price",
           "sku",
           "variants",
@@ -6684,6 +6964,7 @@
           },
           "image": {
             "type": "object",
+            "description": "Stored media reference. Files live on the configured storage provider (local disk or Cloudinary).",
             "properties": {
               "url": {
                 "type": "string",
@@ -6702,6 +6983,34 @@
               "isPrimary": {
                 "type": "boolean",
                 "example": true
+              },
+              "resourceType": {
+                "type": "string",
+                "enum": [
+                  "image",
+                  "video"
+                ],
+                "default": "image",
+                "example": "image"
+              },
+              "thumbnailUrl": {
+                "type": "string",
+                "format": "uri",
+                "description": "Poster frame, present for videos stored on Cloudinary.",
+                "example": "https://res.cloudinary.com/demo/video/upload/black-stone/products/clip.jpg"
+              },
+              "width": {
+                "type": "integer",
+                "example": 1200
+              },
+              "height": {
+                "type": "integer",
+                "example": 1600
+              },
+              "duration": {
+                "type": "number",
+                "description": "Video length in seconds.",
+                "example": 12.4
               }
             },
             "required": [
@@ -6939,6 +7248,7 @@
           },
           "image": {
             "type": "object",
+            "description": "Stored media reference. Files live on the configured storage provider (local disk or Cloudinary).",
             "properties": {
               "url": {
                 "type": "string",
@@ -6957,6 +7267,34 @@
               "isPrimary": {
                 "type": "boolean",
                 "example": true
+              },
+              "resourceType": {
+                "type": "string",
+                "enum": [
+                  "image",
+                  "video"
+                ],
+                "default": "image",
+                "example": "image"
+              },
+              "thumbnailUrl": {
+                "type": "string",
+                "format": "uri",
+                "description": "Poster frame, present for videos stored on Cloudinary.",
+                "example": "https://res.cloudinary.com/demo/video/upload/black-stone/products/clip.jpg"
+              },
+              "width": {
+                "type": "integer",
+                "example": 1200
+              },
+              "height": {
+                "type": "integer",
+                "example": 1600
+              },
+              "duration": {
+                "type": "number",
+                "description": "Video length in seconds.",
+                "example": 12.4
               }
             },
             "required": [
@@ -7310,6 +7648,7 @@
           },
           "image": {
             "type": "object",
+            "description": "Stored media reference. Files live on the configured storage provider (local disk or Cloudinary).",
             "properties": {
               "url": {
                 "type": "string",
@@ -7328,6 +7667,34 @@
               "isPrimary": {
                 "type": "boolean",
                 "example": true
+              },
+              "resourceType": {
+                "type": "string",
+                "enum": [
+                  "image",
+                  "video"
+                ],
+                "default": "image",
+                "example": "image"
+              },
+              "thumbnailUrl": {
+                "type": "string",
+                "format": "uri",
+                "description": "Poster frame, present for videos stored on Cloudinary.",
+                "example": "https://res.cloudinary.com/demo/video/upload/black-stone/products/clip.jpg"
+              },
+              "width": {
+                "type": "integer",
+                "example": 1200
+              },
+              "height": {
+                "type": "integer",
+                "example": 1600
+              },
+              "duration": {
+                "type": "number",
+                "description": "Video length in seconds.",
+                "example": 12.4
               }
             },
             "required": [
@@ -8670,6 +9037,36 @@
         },
         "required": [
           "images"
+        ]
+      },
+      "ProductVideosUpload": {
+        "type": "object",
+        "properties": {
+          "videos": {
+            "type": "array",
+            "maxItems": 3,
+            "items": {
+              "type": "string",
+              "format": "binary"
+            },
+            "description": "MP4, WEBM or MOV. Maximum 50MB per file (MAX_VIDEO_UPLOAD_SIZE_MB), up to 3 files per product."
+          }
+        },
+        "required": [
+          "videos"
+        ]
+      },
+      "RemoveProductVideoRequest": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string",
+            "format": "uri",
+            "example": "https://res.cloudinary.com/demo/video/upload/black-stone/products/clip.mp4"
+          }
+        },
+        "required": [
+          "url"
         ]
       },
       "AddCartItemRequest": {

@@ -32,6 +32,7 @@ const productExample = {
 		},
 		{ id: '6650f1a2b3c4d5e6f7a8b9d2', sku: 'HIJAB-JRSY01-NVY', color: 'Navy', size: 'Free', stock: 18, isActive: true }
 	],
+	videos: [],
 	specifications: [
 		{ key: 'Fabric', value: 'Premium Jersey' },
 		{ key: 'Size', value: '180cm x 75cm' }
@@ -408,12 +409,78 @@ export const productPaths: TPathsObject = {
 		}
 	},
 
+	'/api/products/{id}/videos': {
+		post: {
+			tags: [TAG],
+			summary: 'Upload product videos',
+			description:
+				'**Admin.** `multipart/form-data` upload of up to 3 videos (MP4, WEBM, MOV, max 50MB each). Files are stored on the configured storage provider; with Cloudinary a poster frame is returned as `thumbnailUrl` together with `width`, `height` and `duration`.',
+			operationId: 'addProductVideos',
+			security: bearerAuth,
+			parameters: [parameterRef('IdParam')],
+			requestBody: {
+				required: true,
+				content: {
+					'multipart/form-data': {
+						schema: ref('ProductVideosUpload'),
+						encoding: { videos: { contentType: 'video/mp4, video/webm, video/quicktime' } }
+					}
+				}
+			},
+			responses: {
+				'200': successResponse('Product videos uploaded successfully!', ref('Product')),
+				'400': {
+					description: 'No file supplied, unsupported file type, file too large, or the 3 video limit reached.',
+					content: {
+						'application/json': {
+							schema: ref('ErrorResponse'),
+							example: {
+								success: false,
+								message: 'Only MP4, WEBM and MOV videos are allowed!',
+								errorSources: [{ path: '', message: 'Only MP4, WEBM and MOV videos are allowed!' }]
+							}
+						}
+					}
+				},
+				'401': responseRef('Unauthorized'),
+				'403': responseRef('Forbidden'),
+				'404': responseRef('NotFound'),
+				'500': responseRef('ServerError')
+			}
+		},
+		delete: {
+			tags: [TAG],
+			summary: 'Remove a product video',
+			description: '**Admin.** Removes the video from the product and deletes the stored file.',
+			operationId: 'removeProductVideo',
+			security: bearerAuth,
+			parameters: [parameterRef('IdParam')],
+			requestBody: {
+				required: true,
+				content: {
+					'application/json': {
+						schema: ref('RemoveProductVideoRequest'),
+						example: { url: 'https://res.cloudinary.com/demo/video/upload/black-stone/products/clip.mp4' }
+					}
+				}
+			},
+			responses: {
+				'200': successResponse('Product video removed successfully!', ref('Product')),
+				'400': responseRef('BadRequest'),
+				'401': responseRef('Unauthorized'),
+				'403': responseRef('Forbidden'),
+				'404': responseRef('NotFound'),
+				'500': responseRef('ServerError')
+			}
+		}
+	},
+
 	'/api/products/{id}/images': {
 		post: {
 			tags: [TAG],
 			summary: 'Upload product images',
 			description:
-				'**Admin.** `multipart/form-data` upload of up to 8 images (JPEG, PNG, WEBP, max 5MB each). The first image of an empty gallery becomes the primary image. Files are served publicly from `/uploads/products`.',
+				'**Admin.** `multipart/form-data` upload of up to 8 images (JPEG, PNG, WEBP, max 5MB each). The first image of an empty gallery becomes the primary image. Files go to the configured storage provider - Cloudinary (secure CDN url) or the local disk, served from `/uploads/products`.',
 			operationId: 'addProductImages',
 			security: bearerAuth,
 			parameters: [parameterRef('IdParam')],

@@ -11,7 +11,6 @@ export type TPicture = {
 	publicId: string;
 };
 
-
 export type TAddress = {
 	label?: string;
 	name?: string;

@@ -86,9 +86,23 @@ src/
 - Orders keep product and variant snapshots, so historical orders survive catalog changes.
 - Order status and payment status are independent state machines.
 
-### Storage
+### Storage (Cloudinary)
 
-Uploads go through `IStorageProvider` (`src/app/utils/storage.ts`). The local disk provider is
-the default; switching to S3/Cloudinary means adding a provider — no service changes. Product
-images are public; payment screenshots are stored privately and streamed through an authorised
-endpoint.
+Uploads go through `IStorageProvider` ([src/app/utils/storage.ts](src/app/utils/storage.ts)), so no
+service or controller knows where files live. Two providers ship with the project:
+
+| `STORAGE_PROVIDER` | Behaviour |
+| --- | --- |
+| `cloudinary` | Images and videos are uploaded to Cloudinary under `CLOUDINARY_FOLDER`. Requires `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`. |
+| `local` | Files are written to `STORAGE_LOCAL_DIR` and served from `/uploads/...`. Intended for development. |
+
+- **Product images** - up to 8 per product, JPEG/PNG/WEBP, `MAX_UPLOAD_SIZE_MB` (default 5MB).
+- **Product videos** - up to 3 per product, MP4/WEBM/MOV, `MAX_VIDEO_UPLOAD_SIZE_MB` (default 50MB).
+  Cloudinary also returns a poster frame (`thumbnailUrl`) plus width, height and duration.
+- **Payment screenshots** stay private: on Cloudinary they are uploaded as `authenticated` assets and
+  `GET /api/payments/:id/screenshot` redirects an authorised caller to a signed url; on local storage
+  the same endpoint streams the file. They are never in a public folder.
+- Deleting a product image/video or replacing a screenshot also deletes the file from the provider.
+
+Switching providers is an environment change only - the stored key encodes everything the provider
+needs. Files uploaded under one provider stay addressable by that provider.

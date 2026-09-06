@@ -1,7 +1,7 @@
 import express from 'express';
 import { UserRole } from '../../interface/auth';
 import AuthGuard, { OptionalAuth } from '../../middlewares/AuthGuard';
-import { uploadMultipleImages } from '../../middlewares/upload';
+import { uploadMultipleImages, uploadMultipleVideos } from '../../middlewares/upload';
 import validateRequest from '../../middlewares/validateRequest';
 import ProductControllers from './product.controllers';
 import ProductValidations from './product.validations';
@@ -48,6 +48,15 @@ router.delete(
 	AuthGuard(UserRole.Admin),
 	validateRequest(ProductValidations.removeImageValidation),
 	ProductControllers.removeImage
+);
+
+router.post('/:id/videos', AuthGuard(UserRole.Admin), uploadMultipleVideos('videos', 3), ProductControllers.addVideos);
+
+router.delete(
+	'/:id/videos',
+	AuthGuard(UserRole.Admin),
+	validateRequest(ProductValidations.removeVideoValidation),
+	ProductControllers.removeVideo
 );
 
 router.patch(

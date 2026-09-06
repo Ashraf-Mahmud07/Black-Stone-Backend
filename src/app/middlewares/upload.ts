@@ -4,29 +4,42 @@ import multer from 'multer';
 import config from '../config';
 import AppError from '../errors/AppError';
 
-const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+export const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+export const ALLOWED_VIDEO_TYPES = ['video/mp4', 'video/webm', 'video/quicktime'];
 
-const limits = { fileSize: config.storage.max_file_size_mb * 1024 * 1024 };
-
-const fileFilter: multer.Options['fileFilter'] = (req, file, cb) => {
-	if (!ALLOWED_IMAGE_TYPES.includes(file.mimetype)) {
-		cb(new AppError(httpStatus.BAD_REQUEST, 'Only JPEG, PNG and WEBP images are allowed!'));
-		return;
-	}
-	cb(null, true);
+const buildFilter = (allowed: string[], message: string): multer.Options['fileFilter'] => {
+	return (req, file, cb) => {
+		if (!allowed.includes(file.mimetype)) {
+			cb(new AppError(httpStatus.BAD_REQUEST, message));
+			return;
+		}
+		cb(null, true);
+	};
 };
 
 // files are kept in memory and handed to the storage provider, keeping the
 // business layer independent from where the file finally lives.
-const uploader = multer({ storage: multer.memoryStorage(), limits, fileFilter });
+const imageUploader = multer({
+	storage: multer.memoryStorage(),
+	limits: { fileSize: config.storage.max_file_size_mb * 1024 * 1024 },
+	fileFilter: buildFilter(ALLOWED_IMAGE_TYPES, 'Only JPEG, PNG and WEBP images are allowed!')
+});
 
-const wrap = (handler: ReturnType<typeof uploader.single>) => {
+const videoUploader = multer({
+	storage: multer.memoryStorage(),
+	limits: { fileSize: config.storage.max_video_size_mb * 1024 * 1024 },
+	fileFilter: buildFilter(ALLOWED_VIDEO_TYPES, 'Only MP4, WEBM and MOV videos are allowed!')
+});
+
+type TMulterHandler = ReturnType<typeof imageUploader.single>;
+
+const wrap = (handler: TMulterHandler, maxSizeMb: number) => {
 	return (req: Request, res: Response, next: NextFunction) => {
 		handler(req, res, (error: unknown) => {
 			if (error instanceof multer.MulterError) {
 				const message =
 					error.code === 'LIMIT_FILE_SIZE'
-						? `File is too large! Maximum allowed size is ${config.storage.max_file_size_mb}MB.`
+						? `File is too large! Maximum allowed size is ${maxSizeMb}MB.`
 						: error.message;
 				return next(new AppError(httpStatus.BAD_REQUEST, message));
 			}
@@ -36,8 +49,12 @@ const wrap = (handler: ReturnType<typeof uploader.single>) => {
 	};
 };
 
-export const uploadSingleImage = (field: string) => wrap(uploader.single(field));
+export const uploadSingleImage = (field: string) => wrap(imageUploader.single(field), config.storage.max_file_size_mb);
 
-export const uploadMultipleImages = (field: string, maxCount = 8) => wrap(uploader.array(field, maxCount));
+export const uploadMultipleImages = (field: string, maxCount = 8) =>
+	wrap(imageUploader.array(field, maxCount), config.storage.max_file_size_mb);
 
-export default uploader;
+export const uploadMultipleVideos = (field: string, maxCount = 3) =>
+	wrap(videoUploader.array(field, maxCount), config.storage.max_video_size_mb);
+
+export default imageUploader;

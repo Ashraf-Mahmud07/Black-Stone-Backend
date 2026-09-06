@@ -17,6 +17,8 @@ import {
 } from './product.interfaces';
 import ProductRepository from './product.repository';
 
+const MAX_PRODUCT_VIDEOS = 3;
+
 const buildUniqueSlug = async (source: string, currentId?: string): Promise<string> => {
 	const base = slugify(source);
 	if (!base) {
@@ -264,10 +266,15 @@ const addImages = async (id: string, files: TUploadedFile[]): Promise<TProduct> 
 		throw new AppError(httpStatus.BAD_REQUEST, 'At least one image file is required!');
 	}
 
-	const stored = await Promise.all(files.map((file) => storage.save(file, StorageFolders.products)));
+	const stored = await Promise.all(
+		files.map((file) => storage.save(file, { folder: StorageFolders.products, resourceType: 'image' }))
+	);
 	const images: TImage[] = stored.map((file, index) => ({
 		url: file.url,
 		key: file.key,
+		resourceType: 'image',
+		width: file.width,
+		height: file.height,
 		isPrimary: product.images.length === 0 && index === 0
 	}));
 
@@ -289,6 +296,56 @@ const removeImage = async (id: string, imageUrl: string): Promise<TProduct> => {
 	if (image.key) {
 		// storage cleanup must never break the API response
 		await storage.remove(image.key).catch(() => undefined);
+	}
+	return updated as TProduct;
+};
+
+// ---------------------------------------------------------------------------
+// videos
+// ---------------------------------------------------------------------------
+
+const addVideos = async (id: string, files: TUploadedFile[]): Promise<TProduct> => {
+	const product = await ProductRepository.findById(id);
+	if (!product) {
+		throw new AppError(httpStatus.NOT_FOUND, 'Product not found!');
+	}
+	if (!files.length) {
+		throw new AppError(httpStatus.BAD_REQUEST, 'At least one video file is required!');
+	}
+	if (product.videos.length + files.length > MAX_PRODUCT_VIDEOS) {
+		throw new AppError(httpStatus.BAD_REQUEST, `A product can have at most ${MAX_PRODUCT_VIDEOS} videos!`);
+	}
+
+	const stored = await Promise.all(
+		files.map((file) => storage.save(file, { folder: StorageFolders.products, resourceType: 'video' }))
+	);
+	const videos: TImage[] = stored.map((file) => ({
+		url: file.url,
+		key: file.key,
+		resourceType: 'video',
+		thumbnailUrl: file.thumbnailUrl,
+		width: file.width,
+		height: file.height,
+		duration: file.duration
+	}));
+
+	const updated = await ProductRepository.addVideos(id, videos);
+	return updated as TProduct;
+};
+
+const removeVideo = async (id: string, videoUrl: string): Promise<TProduct> => {
+	const product = await ProductRepository.findById(id);
+	if (!product) {
+		throw new AppError(httpStatus.NOT_FOUND, 'Product not found!');
+	}
+	const video = product.videos.find((item) => item.url === videoUrl);
+	if (!video) {
+		throw new AppError(httpStatus.NOT_FOUND, 'Video not found on this product!');
+	}
+
+	const updated = await ProductRepository.removeVideo(id, videoUrl);
+	if (video.key) {
+		await storage.remove(video.key).catch(() => undefined);
 	}
 	return updated as TProduct;
 };
@@ -364,6 +421,8 @@ const ProductServices = {
 	removeVariant,
 	addImages,
 	removeImage,
+	addVideos,
+	removeVideo,
 	resolvePurchasableLine
 };
 

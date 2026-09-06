@@ -40,7 +40,17 @@ export default {
 		provider: process.env.STORAGE_PROVIDER || 'local',
 		local_dir: process.env.STORAGE_LOCAL_DIR || 'uploads',
 		public_url: (process.env.STORAGE_PUBLIC_URL || 'http://localhost:5000').replace(/\/$/, ''),
-		max_file_size_mb: toNumber(process.env.MAX_UPLOAD_SIZE_MB, 5)
+		max_file_size_mb: toNumber(process.env.MAX_UPLOAD_SIZE_MB, 5),
+		max_video_size_mb: toNumber(process.env.MAX_VIDEO_UPLOAD_SIZE_MB, 50)
+	},
+
+	// cloudinary (used when STORAGE_PROVIDER=cloudinary)
+	cloudinary: {
+		cloud_name: process.env.CLOUDINARY_CLOUD_NAME || '',
+		api_key: process.env.CLOUDINARY_API_KEY || '',
+		api_secret: process.env.CLOUDINARY_API_SECRET || '',
+		// every asset is created under this base folder
+		folder: process.env.CLOUDINARY_FOLDER || 'black-stone'
 	},
 
 	// manual payment (bKash / Nagad) configuration

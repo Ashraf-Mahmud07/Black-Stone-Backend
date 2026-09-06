@@ -3,7 +3,7 @@ import AppError from '../../errors/AppError';
 import { TAuthUser, UserRole } from '../../interface/auth';
 import { TPaginatedResult } from '../../interface/common';
 import { calculatePagination } from '../../utils/pagination';
-import { storage, StorageFolders, TUploadedFile } from '../../utils/storage';
+import { storage, StorageFolders, TFileLocation, TUploadedFile } from '../../utils/storage';
 import { OrderStatus, PaymentMethod, PaymentStatus, TOrder } from '../Order/order.interfaces';
 import OrderRepository from '../Order/order.repository';
 import { isManualPaymentMethod } from '../Order/order.utils';
@@ -106,7 +106,12 @@ const submitPayment = async (
 
 	let screenshotKey = payment.screenshotKey;
 	if (file) {
-		const stored = await storage.save(file, StorageFolders.payments);
+		// screenshots are stored privately - never in a publicly reachable location
+		const stored = await storage.save(file, {
+			folder: StorageFolders.payments,
+			resourceType: 'image',
+			visibility: 'private'
+		});
 		if (screenshotKey) await storage.remove(screenshotKey).catch(() => undefined);
 		screenshotKey = stored.key;
 	}
@@ -184,8 +189,12 @@ const getPayments = async (query: Record<string, unknown>): Promise<TPaginatedRe
 	return { data: data.map(toPaymentView), meta };
 };
 
-/** Returns the absolute file location for streaming - screenshots are never public. */
-const getScreenshotLocation = async (paymentId: string, authUser: TAuthUser): Promise<string> => {
+/**
+ * Resolves where an authorised caller can read the screenshot from: a local file path to
+ * stream (local provider) or a short lived signed url (Cloudinary). Screenshots are never
+ * publicly reachable with either provider.
+ */
+const getScreenshotLocation = async (paymentId: string, authUser: TAuthUser): Promise<TFileLocation> => {
 	const payment = await PaymentRepository.findById(paymentId);
 	if (!payment?.screenshotKey) {
 		throw new AppError(httpStatus.NOT_FOUND, 'No payment screenshot found!');
@@ -196,7 +205,7 @@ const getScreenshotLocation = async (paymentId: string, authUser: TAuthUser): Pr
 		assertOrderAccess(order, authUser);
 	}
 
-	return storage.resolve(payment.screenshotKey);
+	return storage.locate(payment.screenshotKey);
 };
 
 const PaymentServices = {

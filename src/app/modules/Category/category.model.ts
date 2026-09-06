@@ -13,12 +13,18 @@ export type TCategoryDocument = {
 	updatedAt?: Date;
 };
 
+/** Shared media sub-document: product images, product videos, category images, order snapshots. */
 export const ImageSchema = new Schema<TImage>(
 	{
 		url: { type: String, required: [true, 'Image url is required!'] },
 		key: { type: String },
 		alt: { type: String },
-		isPrimary: { type: Boolean, default: false }
+		isPrimary: { type: Boolean, default: false },
+		resourceType: { type: String, enum: ['image', 'video'], default: 'image' },
+		thumbnailUrl: { type: String },
+		width: { type: Number },
+		height: { type: Number },
+		duration: { type: Number }
 	},
 	{ _id: false }
 );

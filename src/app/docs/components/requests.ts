@@ -222,6 +222,31 @@ const ProductImagesUpload: TSchemaObject = {
 // cart
 // ---------------------------------------------------------------------------
 
+const ProductVideosUpload: TSchemaObject = {
+	type: 'object',
+	properties: {
+		videos: {
+			type: 'array',
+			maxItems: 3,
+			items: { type: 'string', format: 'binary' },
+			description: 'MP4, WEBM or MOV. Maximum 50MB per file (MAX_VIDEO_UPLOAD_SIZE_MB), up to 3 files per product.'
+		}
+	},
+	required: ['videos']
+};
+
+const RemoveProductVideoRequest: TSchemaObject = {
+	type: 'object',
+	properties: {
+		url: {
+			type: 'string',
+			format: 'uri',
+			example: 'https://res.cloudinary.com/demo/video/upload/black-stone/products/clip.mp4'
+		}
+	},
+	required: ['url']
+};
+
 const AddCartItemRequest: TSchemaObject = {
 	type: 'object',
 	description: '`variantId` is required when the product has variants. Maximum 50 units per line.',
@@ -467,6 +492,8 @@ export const requestSchemas: Record<string, TSchemaObject> = {
 	UpdateStockRequest,
 	RemoveProductImageRequest,
 	ProductImagesUpload,
+	ProductVideosUpload,
+	RemoveProductVideoRequest,
 	AddCartItemRequest,
 	UpdateCartItemRequest,
 	RemoveCartItemRequest,

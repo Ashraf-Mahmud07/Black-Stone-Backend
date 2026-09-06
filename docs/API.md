@@ -95,8 +95,10 @@ valid Bangladeshi numbers (`01[3-9]XXXXXXXX`, optional `+88`). Password hashes a
 | POST | `/products/:id/variants` | admin | Add a variant. |
 | PATCH | `/products/:id/variants/:variantId` | admin | Update a variant. |
 | DELETE | `/products/:id/variants/:variantId` | admin | Remove a variant. |
-| POST | `/products/:id/images` | admin | `multipart/form-data`, field `images` (max 8). |
+| POST | `/products/:id/images` | admin | `multipart/form-data`, field `images` (max 8, JPEG/PNG/WEBP, 5MB each). |
 | DELETE | `/products/:id/images` | admin | `{ url }`. |
+| POST | `/products/:id/videos` | admin | `multipart/form-data`, field `videos` (max 3, MP4/WEBM/MOV, 50MB each). |
+| DELETE | `/products/:id/videos` | admin | `{ url }`. |
 
 Filters: `search`, `category` (id), `categorySlug`, `minPrice`, `maxPrice`, `featured=true`,
 `inStock=true`, `tags=a,b`, `status` (admin only). Sortable: `createdAt`, `price`, `name`,
@@ -107,6 +109,10 @@ GET /api/products?categorySlug=hijab&minPrice=500&maxPrice=1500&featured=true&so
 ```
 
 Products with variants track stock per variant; the product `stock` is the sum of them.
+
+Media (`images[]`, `videos[]`) is stored on the configured provider - Cloudinary when
+`STORAGE_PROVIDER=cloudinary`, otherwise the local disk. Video entries carry `thumbnailUrl`,
+`width`, `height` and `duration`.
 
 ## Cart — `/api/cart` (customer)
 
@@ -186,8 +192,9 @@ Payment status is tracked **separately** from the order status:
 - Submitting a transaction id sets `paymentStatus = submitted` — never `verified`, and it does
   not change the order status.
 - Transaction ids are unique across orders.
-- Screenshots are stored outside the public directory; the storage key is never returned and the
-  file is only reachable through the authorised endpoint above.
+- Screenshots are stored privately (Cloudinary `authenticated` assets, or outside the public
+  directory locally); the storage key is never returned and the file is only reachable through the
+  authorised endpoint above, which streams the file (local) or redirects to a signed url (Cloudinary).
 - COD orders need no transaction id; their payment is marked `verified` when the order is
   marked `delivered`.
 

@@ -131,6 +131,27 @@ const removeImage: RequestHandler = catchAsync(async (req, res) => {
 	});
 });
 
+const addVideos: RequestHandler = catchAsync(async (req, res) => {
+	const files = (req.files ?? []) as TUploadedFile[];
+	const result = await ProductServices.addVideos(req.params.id, files);
+	sendResponse(res, {
+		statusCode: httpStatus.OK,
+		success: true,
+		message: 'Product videos uploaded successfully!',
+		data: result
+	});
+});
+
+const removeVideo: RequestHandler = catchAsync(async (req, res) => {
+	const result = await ProductServices.removeVideo(req.params.id, req.body.url);
+	sendResponse(res, {
+		statusCode: httpStatus.OK,
+		success: true,
+		message: 'Product video removed successfully!',
+		data: result
+	});
+});
+
 const ProductControllers = {
 	createProduct,
 	getProducts,
@@ -143,7 +164,9 @@ const ProductControllers = {
 	updateVariant,
 	removeVariant,
 	addImages,
-	removeImage
+	removeImage,
+	addVideos,
+	removeVideo
 };
 
 export default ProductControllers;
