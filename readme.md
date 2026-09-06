@@ -112,15 +112,17 @@ address the asset without extra lookups.
 
 The API runs as a single Vercel serverless function.
 
-| File                           | Role                                                             |
-| ------------------------------ | ---------------------------------------------------------------- |
-| [api/index.ts](api/index.ts)   | Function entry - exports the Express app as the request handler. |
-| [vercel.json](vercel.json)     | Rewrites every path to the function and sets its runtime limits. |
-| [src/server.ts](src/server.ts) | Local / long running server only (`app.listen`, seeding).        |
+| File                           | Role                                                                  |
+| ------------------------------ | --------------------------------------------------------------------- |
+| [api/index.ts](api/index.ts)   | Function entry - exports the Express app as the request handler.      |
+| [vercel.json](vercel.json)     | Declares the single `@vercel/node` build and routes every path to it. |
+| [src/server.ts](src/server.ts) | Local / long running server only (`app.listen`, seeding).             |
 
 Vercel compiles `api/index.ts` itself, so nothing is built into `dist/` for the deployment and
-`dist/` stays git-ignored. `buildCommand` runs `type-check:all`, which type-checks `src` and `api`
-together, so a type error fails the deploy instead of shipping.
+`dist/` stays git-ignored. `vercel.json` declares that single build explicitly, which keeps the
+deployment independent of Vercel's framework auto-detection - no build command, no output
+directory, no static entrypoint search. Run `pnpm type-check:all` locally or in CI to type-check
+`src` and `api` together before pushing.
 
 ### Required environment variables on Vercel
 
