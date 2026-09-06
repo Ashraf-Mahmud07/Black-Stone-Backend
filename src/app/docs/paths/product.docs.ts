@@ -414,7 +414,7 @@ export const productPaths: TPathsObject = {
 			tags: [TAG],
 			summary: 'Upload product videos',
 			description:
-				'**Admin.** `multipart/form-data` upload of up to 3 videos (MP4, WEBM, MOV, max 50MB each). Files are uploaded to Cloudinary, which also returns a poster frame as `thumbnailUrl` together with `width`, `height` and `duration`.',
+				'**Admin.** `multipart/form-data` upload of videos (MP4, WEBM, MOV, max 50MB each), up to 12 per product. Files are uploaded to Cloudinary, which also returns a poster frame as `thumbnailUrl` together with `width`, `height` and `duration`.',
 			operationId: 'addProductVideos',
 			security: bearerAuth,
 			parameters: [parameterRef('IdParam')],
@@ -430,7 +430,7 @@ export const productPaths: TPathsObject = {
 			responses: {
 				'200': successResponse('Product videos uploaded successfully!', ref('Product')),
 				'400': {
-					description: 'No file supplied, unsupported file type, file too large, or the 3 video limit reached.',
+					description: 'No file supplied, unsupported file type, file too large, or the 12 video limit reached.',
 					content: {
 						'application/json': {
 							schema: ref('ErrorResponse'),
@@ -480,7 +480,7 @@ export const productPaths: TPathsObject = {
 			tags: [TAG],
 			summary: 'Upload product images',
 			description:
-				'**Admin.** `multipart/form-data` upload of up to 8 images (JPEG, PNG, WEBP, max 5MB each). The first image of an empty gallery becomes the primary image. Files are uploaded to Cloudinary and the response carries the secure CDN url.',
+				'**Admin.** `multipart/form-data` upload of images (JPEG, PNG, WEBP, max 5MB each), up to 12 per product. The first image of an empty gallery becomes the primary image. Files are uploaded to Cloudinary and the response carries the secure CDN url.',
 			operationId: 'addProductImages',
 			security: bearerAuth,
 			parameters: [parameterRef('IdParam')],

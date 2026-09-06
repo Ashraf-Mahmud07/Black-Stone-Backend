@@ -96,8 +96,8 @@ the provider - replacing that one file is all another provider would take.
 Required environment: `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`
 (the server refuses to start without them) and the optional `CLOUDINARY_FOLDER` base folder.
 
-- **Product images** - up to 8 per product, JPEG/PNG/WEBP, `MAX_UPLOAD_SIZE_MB` (default 5MB).
-- **Product videos** - up to 3 per product, MP4/WEBM/MOV, `MAX_VIDEO_UPLOAD_SIZE_MB` (default 50MB).
+- **Product images** - up to 12 per product, JPEG/PNG/WEBP, `MAX_UPLOAD_SIZE_MB` (default 5MB).
+- **Product videos** - up to 12 per product, MP4/WEBM/MOV, `MAX_VIDEO_UPLOAD_SIZE_MB` (default 50MB).
   Cloudinary also returns a poster frame (`thumbnailUrl`) plus width, height and duration.
 - **Payment screenshots** are uploaded as private `authenticated` assets, so their url cannot be
   guessed or shared. `GET /api/payments/:id/screenshot` authorises the caller and then redirects to

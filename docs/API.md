@@ -95,9 +95,9 @@ valid Bangladeshi numbers (`01[3-9]XXXXXXXX`, optional `+88`). Password hashes a
 | POST | `/products/:id/variants` | admin | Add a variant. |
 | PATCH | `/products/:id/variants/:variantId` | admin | Update a variant. |
 | DELETE | `/products/:id/variants/:variantId` | admin | Remove a variant. |
-| POST | `/products/:id/images` | admin | `multipart/form-data`, field `images` (max 8, JPEG/PNG/WEBP, 5MB each). |
+| POST | `/products/:id/images` | admin | `multipart/form-data`, field `images` (max 12 per product, JPEG/PNG/WEBP, 5MB each). |
 | DELETE | `/products/:id/images` | admin | `{ url }`. |
-| POST | `/products/:id/videos` | admin | `multipart/form-data`, field `videos` (max 3, MP4/WEBM/MOV, 50MB each). |
+| POST | `/products/:id/videos` | admin | `multipart/form-data`, field `videos` (max 12 per product, MP4/WEBM/MOV, 50MB each). |
 | DELETE | `/products/:id/videos` | admin | `{ url }`. |
 
 Filters: `search`, `category` (id), `categorySlug`, `minPrice`, `maxPrice`, `featured=true`,

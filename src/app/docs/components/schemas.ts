@@ -280,8 +280,8 @@ const Product: TSchemaObject = {
 		categoryId: objectId,
 		// present on every read endpoint; absent on the few write responses that skip population
 		category: ref('CategorySummary'),
-		images: { type: 'array', items: ref('Image') },
-		videos: { type: 'array', items: ref('Image'), description: 'Product videos (max 3).' },
+		images: { type: 'array', items: ref('Image'), description: 'Product images (max 12).' },
+		videos: { type: 'array', items: ref('Image'), description: 'Product videos (max 12).' },
 		price: { ...money, example: 850 },
 		discountPrice: { ...money, nullable: true, example: 720, description: 'Always lower than `price` when present.' },
 		sku: { type: 'string', example: 'HIJAB-JRSY01' },

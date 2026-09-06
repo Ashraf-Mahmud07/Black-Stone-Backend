@@ -17,7 +17,8 @@ import {
 } from './product.interfaces';
 import ProductRepository from './product.repository';
 
-const MAX_PRODUCT_VIDEOS = 3;
+const MAX_PRODUCT_IMAGES = 12;
+const MAX_PRODUCT_VIDEOS = 12;
 
 const buildUniqueSlug = async (source: string, currentId?: string): Promise<string> => {
 	const base = slugify(source);
@@ -264,6 +265,9 @@ const addImages = async (id: string, files: TUploadedFile[]): Promise<TProduct> 
 	}
 	if (!files.length) {
 		throw new AppError(httpStatus.BAD_REQUEST, 'At least one image file is required!');
+	}
+	if (product.images.length + files.length > MAX_PRODUCT_IMAGES) {
+		throw new AppError(httpStatus.BAD_REQUEST, `A product can have at most ${MAX_PRODUCT_IMAGES} images!`);
 	}
 
 	const stored = await Promise.all(

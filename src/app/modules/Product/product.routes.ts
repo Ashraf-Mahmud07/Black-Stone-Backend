@@ -41,7 +41,7 @@ router.patch(
 
 router.delete('/:id/variants/:variantId', AuthGuard(UserRole.Admin), ProductControllers.removeVariant);
 
-router.post('/:id/images', AuthGuard(UserRole.Admin), uploadMultipleImages('images', 8), ProductControllers.addImages);
+router.post('/:id/images', AuthGuard(UserRole.Admin), uploadMultipleImages('images', 12), ProductControllers.addImages);
 
 router.delete(
 	'/:id/images',
@@ -50,7 +50,7 @@ router.delete(
 	ProductControllers.removeImage
 );
 
-router.post('/:id/videos', AuthGuard(UserRole.Admin), uploadMultipleVideos('videos', 3), ProductControllers.addVideos);
+router.post('/:id/videos', AuthGuard(UserRole.Admin), uploadMultipleVideos('videos', 12), ProductControllers.addVideos);
 
 router.delete(
 	'/:id/videos',

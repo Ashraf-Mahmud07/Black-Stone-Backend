@@ -214,9 +214,9 @@ const ProductImagesUpload: TSchemaObject = {
 	properties: {
 		images: {
 			type: 'array',
-			maxItems: 8,
+			maxItems: 12,
 			items: { type: 'string', format: 'binary' },
-			description: 'JPEG, PNG or WEBP. Maximum 5MB per file (MAX_UPLOAD_SIZE_MB), up to 8 files.'
+			description: 'JPEG, PNG or WEBP. Maximum 5MB per file (MAX_UPLOAD_SIZE_MB), up to 12 images per product.'
 		}
 	},
 	required: ['images']
@@ -231,9 +231,9 @@ const ProductVideosUpload: TSchemaObject = {
 	properties: {
 		videos: {
 			type: 'array',
-			maxItems: 3,
+			maxItems: 12,
 			items: { type: 'string', format: 'binary' },
-			description: 'MP4, WEBM or MOV. Maximum 50MB per file (MAX_VIDEO_UPLOAD_SIZE_MB), up to 3 files per product.'
+			description: 'MP4, WEBM or MOV. Maximum 50MB per file (MAX_VIDEO_UPLOAD_SIZE_MB), up to 12 videos per product.'
 		}
 	},
 	required: ['videos']
