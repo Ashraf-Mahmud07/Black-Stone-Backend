@@ -54,11 +54,7 @@ const ShippingAddressSchema = new Schema<TShippingAddress>(
 		name: { type: String, required: [true, 'Recipient name is required!'] },
 		phone: { type: String, required: [true, 'Recipient phone is required!'] },
 		email: { type: String },
-		addressLine: { type: String, required: [true, 'Address is required!'] },
-		area: { type: String },
-		city: { type: String, required: [true, 'City is required!'] },
-		district: { type: String },
-		postalCode: { type: String },
+		address: { type: String, required: [true, 'Address is required!'] },
 		deliveryNotes: { type: String }
 	},
 	{ _id: false }

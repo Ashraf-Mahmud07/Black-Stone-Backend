@@ -10,11 +10,8 @@ const addressValidation = z.object({
 	label: z.string().optional(),
 	name: z.string().optional(),
 	phone: phoneSchema.optional(),
-	addressLine: z.string({ required_error: 'Address line is required!' }).min(5, 'Address is too short!'),
-	area: z.string().optional(),
-	city: z.string({ required_error: 'City is required!' }).min(2, 'City is too short!'),
-	district: z.string().optional(),
-	postalCode: z.string().optional(),
+	address: z.string({ required_error: 'Address is required!' }).min(5, 'Address is too short!'),
+	deliveryNotes: z.string().max(500, 'Delivery notes are too long!').optional(),
 	isDefault: z.boolean().optional()
 });
 

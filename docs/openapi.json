@@ -662,10 +662,7 @@
                     "label": "Home",
                     "name": "Ayesha Rahman",
                     "phone": "01712345678",
-                    "addressLine": "House 12, Road 4, Dhanmondi",
-                    "area": "Dhanmondi",
-                    "city": "Dhaka",
-                    "postalCode": "1209",
+                    "address": "House 12, Road 4, Dhanmondi, Dhaka 1209",
                     "isDefault": true
                   }
                 ]
@@ -3486,10 +3483,7 @@
                     "shippingAddress": {
                       "name": "Ayesha Rahman",
                       "phone": "01712345678",
-                      "addressLine": "House 12, Road 4, Dhanmondi",
-                      "area": "Dhanmondi",
-                      "city": "Dhaka",
-                      "postalCode": "1209",
+                      "address": "House 12, Road 4, Dhanmondi, Dhaka 1209",
                       "deliveryNotes": "Call before delivery"
                     },
                     "deliveryArea": "inside-dhaka",
@@ -3509,10 +3503,7 @@
                     "shippingAddress": {
                       "name": "Ayesha Rahman",
                       "phone": "01712345678",
-                      "addressLine": "House 12, Road 4, Dhanmondi",
-                      "area": "Dhanmondi",
-                      "city": "Dhaka",
-                      "postalCode": "1209",
+                      "address": "House 12, Road 4, Dhanmondi, Dhaka 1209",
                       "deliveryNotes": "Call before delivery"
                     },
                     "deliveryArea": "inside-dhaka",
@@ -6203,27 +6194,16 @@
             "example": "01712345678",
             "description": "Bangladeshi mobile number."
           },
-          "addressLine": {
+          "address": {
             "type": "string",
             "minLength": 5,
-            "example": "House 12, Road 4, Dhanmondi"
+            "description": "Full delivery address as a single line.",
+            "example": "House 12, Road 4, Dhanmondi, Dhaka 1209"
           },
-          "area": {
+          "deliveryNotes": {
             "type": "string",
-            "example": "Dhanmondi"
-          },
-          "city": {
-            "type": "string",
-            "minLength": 2,
-            "example": "Dhaka"
-          },
-          "district": {
-            "type": "string",
-            "example": "Dhaka"
-          },
-          "postalCode": {
-            "type": "string",
-            "example": "1209"
+            "maxLength": 500,
+            "example": "Call before delivery"
           },
           "isDefault": {
             "type": "boolean",
@@ -6231,8 +6211,7 @@
           }
         },
         "required": [
-          "addressLine",
-          "city"
+          "address"
         ]
       },
       "User": {
@@ -7124,30 +7103,11 @@
             "nullable": true,
             "example": "ayesha@example.com"
           },
-          "addressLine": {
+          "address": {
             "type": "string",
             "minLength": 5,
-            "example": "House 12, Road 4, Dhanmondi"
-          },
-          "area": {
-            "type": "string",
-            "nullable": true,
-            "example": "Dhanmondi"
-          },
-          "city": {
-            "type": "string",
-            "minLength": 2,
-            "example": "Dhaka"
-          },
-          "district": {
-            "type": "string",
-            "nullable": true,
-            "example": "Dhaka"
-          },
-          "postalCode": {
-            "type": "string",
-            "nullable": true,
-            "example": "1209"
+            "description": "Full delivery address as a single line.",
+            "example": "House 12, Road 4, Dhanmondi, Dhaka 1209"
           },
           "deliveryNotes": {
             "type": "string",
@@ -7159,8 +7119,7 @@
         "required": [
           "name",
           "phone",
-          "addressLine",
-          "city"
+          "address"
         ]
       },
       "CustomerSnapshot": {

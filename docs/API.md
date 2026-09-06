@@ -150,7 +150,7 @@ POST /api/orders/checkout
   "items": [{ "productId": "…", "variantId": "…", "quantity": 1 }],
   "customer":        { "name": "Ayesha", "phone": "01712345678", "email": "a@mail.com" },
   "shippingAddress": { "name": "Ayesha", "phone": "01712345678",
-                       "addressLine": "House 12, Road 4", "area": "Dhanmondi", "city": "Dhaka",
+                       "address": "House 12, Road 4, Dhanmondi, Dhaka 1209",
                        "deliveryNotes": "Call before delivery" },
   "deliveryArea": "inside-dhaka",
   "paymentMethod": "bkash",                // bkash | nagad | cod

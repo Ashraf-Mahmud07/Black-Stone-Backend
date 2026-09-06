@@ -15,11 +15,9 @@ export type TAddress = {
 	label?: string;
 	name?: string;
 	phone?: string;
-	addressLine: string;
-	area?: string;
-	city: string;
-	district?: string;
-	postalCode?: string;
+	/** Full delivery address as a single free-form line. */
+	address: string;
+	deliveryNotes?: string;
 	isDefault?: boolean;
 };
 

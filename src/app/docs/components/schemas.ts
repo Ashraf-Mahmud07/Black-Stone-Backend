@@ -116,14 +116,16 @@ const Address: TSchemaObject = {
 		label: { type: 'string', example: 'Home' },
 		name: { type: 'string', example: 'Ayesha Rahman' },
 		phone,
-		addressLine: { type: 'string', minLength: 5, example: 'House 12, Road 4, Dhanmondi' },
-		area: { type: 'string', example: 'Dhanmondi' },
-		city: { type: 'string', minLength: 2, example: 'Dhaka' },
-		district: { type: 'string', example: 'Dhaka' },
-		postalCode: { type: 'string', example: '1209' },
+		address: {
+			type: 'string',
+			minLength: 5,
+			description: 'Full delivery address as a single line.',
+			example: 'House 12, Road 4, Dhanmondi, Dhaka 1209'
+		},
+		deliveryNotes: { type: 'string', maxLength: 500, example: 'Call before delivery' },
 		isDefault: { type: 'boolean', example: true }
 	},
-	required: ['addressLine', 'city']
+	required: ['address']
 };
 
 // ---------------------------------------------------------------------------
@@ -388,14 +390,15 @@ const ShippingAddress: TSchemaObject = {
 		name: { type: 'string', minLength: 2, example: 'Ayesha Rahman' },
 		phone,
 		email: { type: 'string', format: 'email', nullable: true, example: 'ayesha@example.com' },
-		addressLine: { type: 'string', minLength: 5, example: 'House 12, Road 4, Dhanmondi' },
-		area: { type: 'string', nullable: true, example: 'Dhanmondi' },
-		city: { type: 'string', minLength: 2, example: 'Dhaka' },
-		district: { type: 'string', nullable: true, example: 'Dhaka' },
-		postalCode: { type: 'string', nullable: true, example: '1209' },
+		address: {
+			type: 'string',
+			minLength: 5,
+			description: 'Full delivery address as a single line.',
+			example: 'House 12, Road 4, Dhanmondi, Dhaka 1209'
+		},
 		deliveryNotes: { type: 'string', maxLength: 500, nullable: true, example: 'Call before delivery' }
 	},
-	required: ['name', 'phone', 'addressLine', 'city']
+	required: ['name', 'phone', 'address']
 };
 
 const CustomerSnapshot: TSchemaObject = {

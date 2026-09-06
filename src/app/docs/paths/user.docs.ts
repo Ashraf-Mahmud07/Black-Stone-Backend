@@ -25,10 +25,7 @@ export const userPaths: TPathsObject = {
 									label: 'Home',
 									name: 'Ayesha Rahman',
 									phone: '01712345678',
-									addressLine: 'House 12, Road 4, Dhanmondi',
-									area: 'Dhanmondi',
-									city: 'Dhaka',
-									postalCode: '1209',
+									address: 'House 12, Road 4, Dhanmondi, Dhaka 1209',
 									isDefault: true
 								}
 							]
