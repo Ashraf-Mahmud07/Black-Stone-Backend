@@ -71,13 +71,17 @@ const PaginationMeta: TSchemaObject = {
 
 const Image: TSchemaObject = {
 	type: 'object',
-	description: 'Stored media reference. Files live on the configured storage provider (local disk or Cloudinary).',
+	description: 'Stored media reference. Every file is hosted on Cloudinary.',
 	properties: {
-		url: { type: 'string', format: 'uri', example: 'http://localhost:5000/uploads/products/1712345678-ab12cd34.png' },
+		url: {
+			type: 'string',
+			format: 'uri',
+			example: 'https://res.cloudinary.com/demo/image/upload/v1712345678/black-stone/products/hijab-black.webp'
+		},
 		key: {
 			type: 'string',
-			description: 'Storage key, used internally to delete the file.',
-			example: 'products/1712345678-ab12cd34.png'
+			description: 'Cloudinary handle, used internally to delete the asset.',
+			example: 'upload:image:black-stone/products/hijab-black'
 		},
 		alt: { type: 'string', example: 'Premium jersey hijab in black' },
 		isPrimary: { type: 'boolean', example: true },

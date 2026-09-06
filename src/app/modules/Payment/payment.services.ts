@@ -3,7 +3,7 @@ import AppError from '../../errors/AppError';
 import { TAuthUser, UserRole } from '../../interface/auth';
 import { TPaginatedResult } from '../../interface/common';
 import { calculatePagination } from '../../utils/pagination';
-import { storage, StorageFolders, TFileLocation, TUploadedFile } from '../../utils/storage';
+import { storage, StorageFolders, TUploadedFile } from '../../utils/storage';
 import { OrderStatus, PaymentMethod, PaymentStatus, TOrder } from '../Order/order.interfaces';
 import OrderRepository from '../Order/order.repository';
 import { isManualPaymentMethod } from '../Order/order.utils';
@@ -190,11 +190,10 @@ const getPayments = async (query: Record<string, unknown>): Promise<TPaginatedRe
 };
 
 /**
- * Resolves where an authorised caller can read the screenshot from: a local file path to
- * stream (local provider) or a short lived signed url (Cloudinary). Screenshots are never
- * publicly reachable with either provider.
+ * Returns a signed, private Cloudinary url for the screenshot. Access is authorised here -
+ * screenshots are stored as `authenticated` assets and are never publicly reachable.
  */
-const getScreenshotLocation = async (paymentId: string, authUser: TAuthUser): Promise<TFileLocation> => {
+const getScreenshotUrl = async (paymentId: string, authUser: TAuthUser): Promise<string> => {
 	const payment = await PaymentRepository.findById(paymentId);
 	if (!payment?.screenshotKey) {
 		throw new AppError(httpStatus.NOT_FOUND, 'No payment screenshot found!');
@@ -215,7 +214,7 @@ const PaymentServices = {
 	rejectPayment,
 	refundPayment,
 	getPayments,
-	getScreenshotLocation
+	getScreenshotUrl
 };
 
 export default PaymentServices;

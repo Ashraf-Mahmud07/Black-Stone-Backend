@@ -35,7 +35,6 @@ const file = {
 
 /** Builds the provider with credentials in place, bypassing the cached config module. */
 const buildProvider = async () => {
-	vi.stubEnv('STORAGE_PROVIDER', 'cloudinary');
 	vi.stubEnv('CLOUDINARY_CLOUD_NAME', 'demo-cloud');
 	vi.stubEnv('CLOUDINARY_API_KEY', 'test-key');
 	vi.stubEnv('CLOUDINARY_API_SECRET', 'test-secret');
@@ -43,7 +42,7 @@ const buildProvider = async () => {
 	vi.resetModules();
 
 	const { createStorageProvider } = await import('../app/utils/storage');
-	return createStorageProvider('cloudinary');
+	return createStorageProvider();
 };
 
 describe('CloudinaryStorageProvider', () => {
@@ -103,15 +102,15 @@ describe('CloudinaryStorageProvider', () => {
 	it('signs the delivery url of a private asset and leaves public ones unsigned', async () => {
 		const provider = await buildProvider();
 
-		const privateLocation = await provider.locate('authenticated:image:black-stone/payments/receipt');
-		expect(privateLocation).toEqual({ kind: 'url', url: expect.stringContaining('s--sig--') });
+		const privateUrl = await provider.locate('authenticated:image:black-stone/payments/receipt');
+		expect(privateUrl).toContain('s--sig--');
 		expect(cloudinaryMock.url).toHaveBeenCalledWith(
 			'black-stone/payments/receipt',
 			expect.objectContaining({ type: 'authenticated', sign_url: true, secure: true })
 		);
 
-		const publicLocation = await provider.locate('upload:image:black-stone/products/photo');
-		expect(publicLocation.kind).toBe('url');
+		const publicUrl = await provider.locate('upload:image:black-stone/products/photo');
+		expect(publicUrl).not.toContain('s--sig--');
 		expect(cloudinaryMock.url).toHaveBeenLastCalledWith(
 			'black-stone/products/photo',
 			expect.objectContaining({ type: 'upload', sign_url: false })

@@ -261,20 +261,12 @@ export const paymentPaths: TPathsObject = {
 			tags: [TAG],
 			summary: 'Download a payment screenshot',
 			description:
-				'**Admin or the customer who owns the order.** Payment screenshots are never publicly reachable. With local storage the image is streamed from this endpoint; with Cloudinary the screenshot is stored as a private (authenticated) asset and this endpoint answers with a 302 redirect to a signed, short lived delivery url. Follow redirects when fetching it.',
+				'**Admin or the customer who owns the order.** Screenshots are stored on Cloudinary as private (`authenticated`) assets and are never publicly reachable. Once the caller is authorised this endpoint answers with a 302 redirect to a signed delivery url, so follow redirects when fetching it.',
 			operationId: 'getPaymentScreenshot',
 			security: bearerAuth,
 			parameters: [parameterRef('IdParam')],
 			responses: {
-				'200': {
-					description: 'The screenshot image (local storage provider).',
-					content: {
-						'image/jpeg': { schema: { type: 'string', format: 'binary' } },
-						'image/png': { schema: { type: 'string', format: 'binary' } },
-						'image/webp': { schema: { type: 'string', format: 'binary' } }
-					}
-				},
-				'302': { description: 'Redirect to a signed private Cloudinary url (Cloudinary storage provider).' },
+				'302': { description: 'Redirect to the signed, private Cloudinary url of the screenshot.' },
 				'401': responseRef('Unauthorized'),
 				'403': responseRef('Forbidden'),
 				'404': {

@@ -1591,8 +1591,8 @@
                       },
                       "images": [
                         {
-                          "url": "http://localhost:5000/uploads/products/1712345678-ab12cd34.png",
-                          "key": "products/1712345678-ab12cd34.png",
+                          "url": "https://res.cloudinary.com/demo/image/upload/v1712345678/black-stone/products/hijab-black.webp",
+                          "key": "upload:image:black-stone/products/hijab-black",
                           "isPrimary": true
                         }
                       ],
@@ -1849,8 +1849,8 @@
                     },
                     "images": [
                       {
-                        "url": "http://localhost:5000/uploads/products/1712345678-ab12cd34.png",
-                        "key": "products/1712345678-ab12cd34.png",
+                        "url": "https://res.cloudinary.com/demo/image/upload/v1712345678/black-stone/products/hijab-black.webp",
+                        "key": "upload:image:black-stone/products/hijab-black",
                         "isPrimary": true
                       }
                     ],
@@ -1987,8 +1987,8 @@
                     },
                     "images": [
                       {
-                        "url": "http://localhost:5000/uploads/products/1712345678-ab12cd34.png",
-                        "key": "products/1712345678-ab12cd34.png",
+                        "url": "https://res.cloudinary.com/demo/image/upload/v1712345678/black-stone/products/hijab-black.webp",
+                        "key": "upload:image:black-stone/products/hijab-black",
                         "isPrimary": true
                       }
                     ],
@@ -2540,7 +2540,7 @@
           "Products"
         ],
         "summary": "Upload product videos",
-        "description": "**Admin.** `multipart/form-data` upload of up to 3 videos (MP4, WEBM, MOV, max 50MB each). Files are stored on the configured storage provider; with Cloudinary a poster frame is returned as `thumbnailUrl` together with `width`, `height` and `duration`.",
+        "description": "**Admin.** `multipart/form-data` upload of up to 3 videos (MP4, WEBM, MOV, max 50MB each). Files are uploaded to Cloudinary, which also returns a poster frame as `thumbnailUrl` together with `width`, `height` and `duration`.",
         "operationId": "addProductVideos",
         "security": [
           {
@@ -2719,7 +2719,7 @@
           "Products"
         ],
         "summary": "Upload product images",
-        "description": "**Admin.** `multipart/form-data` upload of up to 8 images (JPEG, PNG, WEBP, max 5MB each). The first image of an empty gallery becomes the primary image. Files go to the configured storage provider - Cloudinary (secure CDN url) or the local disk, served from `/uploads/products`.",
+        "description": "**Admin.** `multipart/form-data` upload of up to 8 images (JPEG, PNG, WEBP, max 5MB each). The first image of an empty gallery becomes the primary image. Files are uploaded to Cloudinary and the response carries the secure CDN url.",
         "operationId": "addProductImages",
         "security": [
           {
@@ -2837,7 +2837,7 @@
                 "$ref": "#/components/schemas/RemoveProductImageRequest"
               },
               "example": {
-                "url": "http://localhost:5000/uploads/products/1712345678-ab12cd34.png"
+                "url": "https://res.cloudinary.com/demo/image/upload/v1712345678/black-stone/products/hijab-black.webp"
               }
             }
           }
@@ -5034,7 +5034,7 @@
           "Payments"
         ],
         "summary": "Download a payment screenshot",
-        "description": "**Admin or the customer who owns the order.** Payment screenshots are never publicly reachable. With local storage the image is streamed from this endpoint; with Cloudinary the screenshot is stored as a private (authenticated) asset and this endpoint answers with a 302 redirect to a signed, short lived delivery url. Follow redirects when fetching it.",
+        "description": "**Admin or the customer who owns the order.** Screenshots are stored on Cloudinary as private (`authenticated`) assets and are never publicly reachable. Once the caller is authorised this endpoint answers with a 302 redirect to a signed delivery url, so follow redirects when fetching it.",
         "operationId": "getPaymentScreenshot",
         "security": [
           {
@@ -5047,31 +5047,8 @@
           }
         ],
         "responses": {
-          "200": {
-            "description": "The screenshot image (local storage provider).",
-            "content": {
-              "image/jpeg": {
-                "schema": {
-                  "type": "string",
-                  "format": "binary"
-                }
-              },
-              "image/png": {
-                "schema": {
-                  "type": "string",
-                  "format": "binary"
-                }
-              },
-              "image/webp": {
-                "schema": {
-                  "type": "string",
-                  "format": "binary"
-                }
-              }
-            }
-          },
           "302": {
-            "description": "Redirect to a signed private Cloudinary url (Cloudinary storage provider)."
+            "description": "Redirect to the signed, private Cloudinary url of the screenshot."
           },
           "401": {
             "$ref": "#/components/responses/Unauthorized"
@@ -6136,17 +6113,17 @@
       },
       "Image": {
         "type": "object",
-        "description": "Stored media reference. Files live on the configured storage provider (local disk or Cloudinary).",
+        "description": "Stored media reference. Every file is hosted on Cloudinary.",
         "properties": {
           "url": {
             "type": "string",
             "format": "uri",
-            "example": "http://localhost:5000/uploads/products/1712345678-ab12cd34.png"
+            "example": "https://res.cloudinary.com/demo/image/upload/v1712345678/black-stone/products/hijab-black.webp"
           },
           "key": {
             "type": "string",
-            "description": "Storage key, used internally to delete the file.",
-            "example": "products/1712345678-ab12cd34.png"
+            "description": "Cloudinary handle, used internally to delete the asset.",
+            "example": "upload:image:black-stone/products/hijab-black"
           },
           "alt": {
             "type": "string",
@@ -6481,17 +6458,17 @@
           },
           "image": {
             "type": "object",
-            "description": "Stored media reference. Files live on the configured storage provider (local disk or Cloudinary).",
+            "description": "Stored media reference. Every file is hosted on Cloudinary.",
             "properties": {
               "url": {
                 "type": "string",
                 "format": "uri",
-                "example": "http://localhost:5000/uploads/products/1712345678-ab12cd34.png"
+                "example": "https://res.cloudinary.com/demo/image/upload/v1712345678/black-stone/products/hijab-black.webp"
               },
               "key": {
                 "type": "string",
-                "description": "Storage key, used internally to delete the file.",
-                "example": "products/1712345678-ab12cd34.png"
+                "description": "Cloudinary handle, used internally to delete the asset.",
+                "example": "upload:image:black-stone/products/hijab-black"
               },
               "alt": {
                 "type": "string",
@@ -6687,17 +6664,17 @@
           },
           "image": {
             "type": "object",
-            "description": "Stored media reference. Files live on the configured storage provider (local disk or Cloudinary).",
+            "description": "Stored media reference. Every file is hosted on Cloudinary.",
             "properties": {
               "url": {
                 "type": "string",
                 "format": "uri",
-                "example": "http://localhost:5000/uploads/products/1712345678-ab12cd34.png"
+                "example": "https://res.cloudinary.com/demo/image/upload/v1712345678/black-stone/products/hijab-black.webp"
               },
               "key": {
                 "type": "string",
-                "description": "Storage key, used internally to delete the file.",
-                "example": "products/1712345678-ab12cd34.png"
+                "description": "Cloudinary handle, used internally to delete the asset.",
+                "example": "upload:image:black-stone/products/hijab-black"
               },
               "alt": {
                 "type": "string",
@@ -6964,17 +6941,17 @@
           },
           "image": {
             "type": "object",
-            "description": "Stored media reference. Files live on the configured storage provider (local disk or Cloudinary).",
+            "description": "Stored media reference. Every file is hosted on Cloudinary.",
             "properties": {
               "url": {
                 "type": "string",
                 "format": "uri",
-                "example": "http://localhost:5000/uploads/products/1712345678-ab12cd34.png"
+                "example": "https://res.cloudinary.com/demo/image/upload/v1712345678/black-stone/products/hijab-black.webp"
               },
               "key": {
                 "type": "string",
-                "description": "Storage key, used internally to delete the file.",
-                "example": "products/1712345678-ab12cd34.png"
+                "description": "Cloudinary handle, used internally to delete the asset.",
+                "example": "upload:image:black-stone/products/hijab-black"
               },
               "alt": {
                 "type": "string",
@@ -7248,17 +7225,17 @@
           },
           "image": {
             "type": "object",
-            "description": "Stored media reference. Files live on the configured storage provider (local disk or Cloudinary).",
+            "description": "Stored media reference. Every file is hosted on Cloudinary.",
             "properties": {
               "url": {
                 "type": "string",
                 "format": "uri",
-                "example": "http://localhost:5000/uploads/products/1712345678-ab12cd34.png"
+                "example": "https://res.cloudinary.com/demo/image/upload/v1712345678/black-stone/products/hijab-black.webp"
               },
               "key": {
                 "type": "string",
-                "description": "Storage key, used internally to delete the file.",
-                "example": "products/1712345678-ab12cd34.png"
+                "description": "Cloudinary handle, used internally to delete the asset.",
+                "example": "upload:image:black-stone/products/hijab-black"
               },
               "alt": {
                 "type": "string",
@@ -7648,17 +7625,17 @@
           },
           "image": {
             "type": "object",
-            "description": "Stored media reference. Files live on the configured storage provider (local disk or Cloudinary).",
+            "description": "Stored media reference. Every file is hosted on Cloudinary.",
             "properties": {
               "url": {
                 "type": "string",
                 "format": "uri",
-                "example": "http://localhost:5000/uploads/products/1712345678-ab12cd34.png"
+                "example": "https://res.cloudinary.com/demo/image/upload/v1712345678/black-stone/products/hijab-black.webp"
               },
               "key": {
                 "type": "string",
-                "description": "Storage key, used internally to delete the file.",
-                "example": "products/1712345678-ab12cd34.png"
+                "description": "Cloudinary handle, used internally to delete the asset.",
+                "example": "upload:image:black-stone/products/hijab-black"
               },
               "alt": {
                 "type": "string",
@@ -8538,7 +8515,7 @@
               },
               "key": {
                 "type": "string",
-                "example": "products/hijab-black.png"
+                "example": "upload:image:black-stone/products/hijab-black"
               },
               "alt": {
                 "type": "string",
@@ -8592,7 +8569,7 @@
               },
               "key": {
                 "type": "string",
-                "example": "products/hijab-black.png"
+                "example": "upload:image:black-stone/products/hijab-black"
               },
               "alt": {
                 "type": "string",
@@ -8673,7 +8650,7 @@
               },
               "key": {
                 "type": "string",
-                "example": "products/hijab-black.png"
+                "example": "upload:image:black-stone/products/hijab-black"
               },
               "alt": {
                 "type": "string",
@@ -8751,7 +8728,7 @@
               },
               "key": {
                 "type": "string",
-                "example": "products/hijab-black.png"
+                "example": "upload:image:black-stone/products/hijab-black"
               },
               "alt": {
                 "type": "string",
@@ -8810,7 +8787,7 @@
                 },
                 "key": {
                   "type": "string",
-                  "example": "products/hijab-black.png"
+                  "example": "upload:image:black-stone/products/hijab-black"
                 },
                 "alt": {
                   "type": "string",
@@ -8928,7 +8905,7 @@
                 },
                 "key": {
                   "type": "string",
-                  "example": "products/hijab-black.png"
+                  "example": "upload:image:black-stone/products/hijab-black"
                 },
                 "alt": {
                   "type": "string",
@@ -9015,7 +8992,7 @@
           "url": {
             "type": "string",
             "format": "uri",
-            "example": "http://localhost:5000/uploads/products/1712345678-ab12cd34.png"
+            "example": "https://res.cloudinary.com/demo/image/upload/v1712345678/black-stone/products/hijab-black.webp"
           }
         },
         "required": [

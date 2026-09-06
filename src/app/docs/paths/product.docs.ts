@@ -13,8 +13,8 @@ const productExample = {
 	category: { id: '6650f1a2b3c4d5e6f7a8b9a1', name: 'Hijab', slug: 'hijab' },
 	images: [
 		{
-			url: 'http://localhost:5000/uploads/products/1712345678-ab12cd34.png',
-			key: 'products/1712345678-ab12cd34.png',
+			url: 'https://res.cloudinary.com/demo/image/upload/v1712345678/black-stone/products/hijab-black.webp',
+			key: 'upload:image:black-stone/products/hijab-black',
 			isPrimary: true
 		}
 	],
@@ -414,7 +414,7 @@ export const productPaths: TPathsObject = {
 			tags: [TAG],
 			summary: 'Upload product videos',
 			description:
-				'**Admin.** `multipart/form-data` upload of up to 3 videos (MP4, WEBM, MOV, max 50MB each). Files are stored on the configured storage provider; with Cloudinary a poster frame is returned as `thumbnailUrl` together with `width`, `height` and `duration`.',
+				'**Admin.** `multipart/form-data` upload of up to 3 videos (MP4, WEBM, MOV, max 50MB each). Files are uploaded to Cloudinary, which also returns a poster frame as `thumbnailUrl` together with `width`, `height` and `duration`.',
 			operationId: 'addProductVideos',
 			security: bearerAuth,
 			parameters: [parameterRef('IdParam')],
@@ -480,7 +480,7 @@ export const productPaths: TPathsObject = {
 			tags: [TAG],
 			summary: 'Upload product images',
 			description:
-				'**Admin.** `multipart/form-data` upload of up to 8 images (JPEG, PNG, WEBP, max 5MB each). The first image of an empty gallery becomes the primary image. Files go to the configured storage provider - Cloudinary (secure CDN url) or the local disk, served from `/uploads/products`.',
+				'**Admin.** `multipart/form-data` upload of up to 8 images (JPEG, PNG, WEBP, max 5MB each). The first image of an empty gallery becomes the primary image. Files are uploaded to Cloudinary and the response carries the secure CDN url.',
 			operationId: 'addProductImages',
 			security: bearerAuth,
 			parameters: [parameterRef('IdParam')],
@@ -526,7 +526,9 @@ export const productPaths: TPathsObject = {
 				content: {
 					'application/json': {
 						schema: ref('RemoveProductImageRequest'),
-						example: { url: 'http://localhost:5000/uploads/products/1712345678-ab12cd34.png' }
+						example: {
+							url: 'https://res.cloudinary.com/demo/image/upload/v1712345678/black-stone/products/hijab-black.webp'
+						}
 					}
 				}
 			},

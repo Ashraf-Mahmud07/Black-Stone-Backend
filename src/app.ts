@@ -2,7 +2,6 @@ import cookieParser from 'cookie-parser';
 import cors from 'cors';
 import express, { Application, Request, Response } from 'express';
 import helmet from 'helmet';
-import path from 'path';
 import config from './app/config';
 import setupSwagger from './app/docs';
 import globalErrorHandler from './app/middlewares/globalErrorHandler';
@@ -30,12 +29,6 @@ app.use(
 
 // strips mongo operator style keys from any user supplied payload
 app.use(sanitizeRequest);
-
-// public assets - product and category images only.
-// payment screenshots live under uploads/payments and are served through an authorised route.
-const uploadsDir = path.join(process.cwd(), config.storage.local_dir);
-app.use('/uploads/products', express.static(path.join(uploadsDir, 'products')));
-app.use('/uploads/categories', express.static(path.join(uploadsDir, 'categories')));
 
 // API documentation: Swagger UI at SWAGGER_PATH (default /api-docs) and the raw
 // OpenAPI document at the same path with a .json suffix.

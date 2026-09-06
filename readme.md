@@ -88,21 +88,21 @@ src/
 
 ### Storage (Cloudinary)
 
-Uploads go through `IStorageProvider` ([src/app/utils/storage.ts](src/app/utils/storage.ts)), so no
-service or controller knows where files live. Two providers ship with the project:
+Every product image, product video and payment screenshot is uploaded to Cloudinary. Nothing is
+written to the server disk. Uploads go through `IStorageProvider`
+([src/app/utils/storage.ts](src/app/utils/storage.ts)), so no service or controller knows about
+the provider - replacing that one file is all another provider would take.
 
-| `STORAGE_PROVIDER` | Behaviour |
-| --- | --- |
-| `cloudinary` | Images and videos are uploaded to Cloudinary under `CLOUDINARY_FOLDER`. Requires `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`. |
-| `local` | Files are written to `STORAGE_LOCAL_DIR` and served from `/uploads/...`. Intended for development. |
+Required environment: `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`
+(the server refuses to start without them) and the optional `CLOUDINARY_FOLDER` base folder.
 
 - **Product images** - up to 8 per product, JPEG/PNG/WEBP, `MAX_UPLOAD_SIZE_MB` (default 5MB).
 - **Product videos** - up to 3 per product, MP4/WEBM/MOV, `MAX_VIDEO_UPLOAD_SIZE_MB` (default 50MB).
   Cloudinary also returns a poster frame (`thumbnailUrl`) plus width, height and duration.
-- **Payment screenshots** stay private: on Cloudinary they are uploaded as `authenticated` assets and
-  `GET /api/payments/:id/screenshot` redirects an authorised caller to a signed url; on local storage
-  the same endpoint streams the file. They are never in a public folder.
-- Deleting a product image/video or replacing a screenshot also deletes the file from the provider.
+- **Payment screenshots** are uploaded as private `authenticated` assets, so their url cannot be
+  guessed or shared. `GET /api/payments/:id/screenshot` authorises the caller and then redirects to
+  a signed delivery url.
+- Deleting a product image/video or replacing a screenshot also deletes the asset from Cloudinary.
 
-Switching providers is an environment change only - the stored key encodes everything the provider
-needs. Files uploaded under one provider stay addressable by that provider.
+Stored keys have the form `<deliveryType>:<resourceType>:<publicId>` so a delete or signed url can
+address the asset without extra lookups.

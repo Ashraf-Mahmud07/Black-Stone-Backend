@@ -8,12 +8,7 @@ const cloudinaryMock = vi.hoisted(() => ({
 
 vi.mock('cloudinary', () => ({ v2: cloudinaryMock }));
 
-import {
-	createStorageProvider,
-	decodeCloudinaryKey,
-	encodeCloudinaryKey,
-	resolveResourceType
-} from '../app/utils/storage';
+import { decodeCloudinaryKey, encodeCloudinaryKey, resolveResourceType } from '../app/utils/storage';
 
 describe('resolveResourceType', () => {
 	it('maps mime types onto storage resource types', () => {
@@ -56,15 +51,13 @@ describe('cloudinary keys', () => {
 });
 
 describe('createStorageProvider', () => {
-	it('builds the local provider by default', () => {
-		expect(createStorageProvider('local').name).toBe('local');
-	});
+	it('refuses to start without Cloudinary credentials', async () => {
+		vi.stubEnv('CLOUDINARY_CLOUD_NAME', '');
+		vi.stubEnv('CLOUDINARY_API_KEY', '');
+		vi.stubEnv('CLOUDINARY_API_SECRET', '');
+		vi.resetModules();
 
-	it('rejects an unknown provider name', () => {
-		expect(() => createStorageProvider('s3')).toThrowError(/Unknown STORAGE_PROVIDER/);
-	});
-
-	it('refuses to build the cloudinary provider without credentials', () => {
-		expect(() => createStorageProvider('cloudinary')).toThrowError(/CLOUDINARY_CLOUD_NAME/);
+		await expect(import('../app/utils/storage')).rejects.toThrowError(/CLOUDINARY_CLOUD_NAME/);
+		vi.unstubAllEnvs();
 	});
 });

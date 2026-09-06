@@ -25,7 +25,7 @@ const imageInput: TSchemaObject = {
 	type: 'object',
 	properties: {
 		url: { type: 'string', format: 'uri', example: 'https://cdn.example.com/products/hijab-black.png' },
-		key: { type: 'string', example: 'products/hijab-black.png' },
+		key: { type: 'string', example: 'upload:image:black-stone/products/hijab-black' },
 		alt: { type: 'string', example: 'Black jersey hijab' }
 	},
 	required: ['url']
@@ -200,7 +200,11 @@ const UpdateStockRequest: TSchemaObject = {
 const RemoveProductImageRequest: TSchemaObject = {
 	type: 'object',
 	properties: {
-		url: { type: 'string', format: 'uri', example: 'http://localhost:5000/uploads/products/1712345678-ab12cd34.png' }
+		url: {
+			type: 'string',
+			format: 'uri',
+			example: 'https://res.cloudinary.com/demo/image/upload/v1712345678/black-stone/products/hijab-black.webp'
+		}
 	},
 	required: ['url']
 };

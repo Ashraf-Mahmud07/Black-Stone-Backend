@@ -110,8 +110,7 @@ GET /api/products?categorySlug=hijab&minPrice=500&maxPrice=1500&featured=true&so
 
 Products with variants track stock per variant; the product `stock` is the sum of them.
 
-Media (`images[]`, `videos[]`) is stored on the configured provider - Cloudinary when
-`STORAGE_PROVIDER=cloudinary`, otherwise the local disk. Video entries carry `thumbnailUrl`,
+Media (`images[]`, `videos[]`) is hosted on Cloudinary. Video entries carry `thumbnailUrl`,
 `width`, `height` and `duration`.
 
 ## Cart — `/api/cart` (customer)
@@ -192,9 +191,9 @@ Payment status is tracked **separately** from the order status:
 - Submitting a transaction id sets `paymentStatus = submitted` — never `verified`, and it does
   not change the order status.
 - Transaction ids are unique across orders.
-- Screenshots are stored privately (Cloudinary `authenticated` assets, or outside the public
-  directory locally); the storage key is never returned and the file is only reachable through the
-  authorised endpoint above, which streams the file (local) or redirects to a signed url (Cloudinary).
+- Screenshots are uploaded to Cloudinary as private `authenticated` assets; the storage key is never
+  returned and the file is only reachable through the authorised endpoint above, which redirects to a
+  signed delivery url (302).
 - COD orders need no transaction id; their payment is marked `verified` when the order is
   marked `delivered`.
 

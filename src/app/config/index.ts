@@ -35,16 +35,13 @@ export default {
 		.map((origin) => origin.trim())
 		.filter(Boolean),
 
-	// storage
+	// upload limits (all files are stored on Cloudinary)
 	storage: {
-		provider: process.env.STORAGE_PROVIDER || 'local',
-		local_dir: process.env.STORAGE_LOCAL_DIR || 'uploads',
-		public_url: (process.env.STORAGE_PUBLIC_URL || 'http://localhost:5000').replace(/\/$/, ''),
 		max_file_size_mb: toNumber(process.env.MAX_UPLOAD_SIZE_MB, 5),
 		max_video_size_mb: toNumber(process.env.MAX_VIDEO_UPLOAD_SIZE_MB, 50)
 	},
 
-	// cloudinary (used when STORAGE_PROVIDER=cloudinary)
+	// cloudinary - the storage provider for every image and video
 	cloudinary: {
 		cloud_name: process.env.CLOUDINARY_CLOUD_NAME || '',
 		api_key: process.env.CLOUDINARY_API_KEY || '',

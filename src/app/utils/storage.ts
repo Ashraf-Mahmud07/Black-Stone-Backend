@@ -1,10 +1,7 @@
 import { v2 as cloudinary, UploadApiOptions, UploadApiResponse } from 'cloudinary';
-import fs from 'fs';
 import httpStatus from 'http-status';
-import path from 'path';
 import config from '../config';
 import AppError from '../errors/AppError';
-import { uniqueSuffix } from './slugify';
 
 export type TUploadedFile = {
 	buffer: Buffer;
@@ -15,7 +12,7 @@ export type TUploadedFile = {
 
 export type TStorageResourceType = 'image' | 'video' | 'raw';
 
-/** `private` assets are never publicly reachable and are read through an authorised route. */
+/** `private` assets are never publicly reachable and are read through a signed url. */
 export type TStorageVisibility = 'public' | 'private';
 
 export type TStoredFile = {
@@ -38,23 +35,17 @@ export type TSaveOptions = {
 	visibility?: TStorageVisibility;
 };
 
-export type TRemoveOptions = {
-	resourceType?: TStorageResourceType;
-	visibility?: TStorageVisibility;
-};
-
-/** Where a private file can be read from: a local path to stream, or a signed URL to redirect to. */
-export type TFileLocation = { kind: 'path'; path: string } | { kind: 'url'; url: string };
-
 /**
- * Storage is abstracted so the provider can be swapped without touching any service or
- * controller. `local` writes to disk (development), `cloudinary` is the hosted provider.
+ * All uploads (product images, product videos, payment screenshots) go to Cloudinary.
+ * The interface keeps services and controllers unaware of the provider, so another
+ * hosted provider can replace this file without touching business logic.
  */
 export interface IStorageProvider {
 	readonly name: string;
 	save(file: TUploadedFile, options: TSaveOptions): Promise<TStoredFile>;
-	remove(key: string, options?: TRemoveOptions): Promise<void>;
-	locate(key: string, options?: TRemoveOptions): Promise<TFileLocation>;
+	remove(key: string): Promise<void>;
+	/** Delivery url for a stored file - signed when the asset is private. */
+	locate(key: string): Promise<string>;
 }
 
 /** Maps a mime type onto the storage resource type. Exported for tests. */
@@ -64,68 +55,7 @@ export const resolveResourceType = (mimetype: string): TStorageResourceType => {
 	return 'raw';
 };
 
-const safeFileName = (originalName: string): string => {
-	const ext = path
-		.extname(originalName)
-		.toLowerCase()
-		.replace(/[^a-z0-9.]/g, '');
-	return `${Date.now()}-${uniqueSuffix(8)}${ext || ''}`;
-};
-
 const sanitizeFolder = (folder: string): string => folder.replace(/[^a-zA-Z0-9/_-]/g, '');
-
-// ---------------------------------------------------------------------------
-// local disk
-// ---------------------------------------------------------------------------
-
-class LocalStorageProvider implements IStorageProvider {
-	readonly name = 'local';
-
-	private readonly baseDir: string;
-
-	constructor(baseDir: string) {
-		this.baseDir = path.isAbsolute(baseDir) ? baseDir : path.join(process.cwd(), baseDir);
-	}
-
-	async save(file: TUploadedFile, options: TSaveOptions): Promise<TStoredFile> {
-		const folder = sanitizeFolder(options.folder);
-		const targetDir = path.join(this.baseDir, folder);
-		await fs.promises.mkdir(targetDir, { recursive: true });
-
-		const key = `${folder}/${safeFileName(file.originalname)}`;
-		await fs.promises.writeFile(path.join(this.baseDir, key), file.buffer);
-
-		return {
-			key,
-			url: `${config.storage.public_url}/${config.storage.local_dir}/${key}`,
-			mimetype: file.mimetype,
-			size: file.size,
-			resourceType: options.resourceType ?? resolveResourceType(file.mimetype)
-		};
-	}
-
-	async remove(key: string): Promise<void> {
-		const location = this.resolvePath(key);
-		await fs.promises.rm(location, { force: true });
-	}
-
-	async locate(key: string): Promise<TFileLocation> {
-		return { kind: 'path', path: this.resolvePath(key) };
-	}
-
-	private resolvePath(key: string): string {
-		const target = path.join(this.baseDir, key);
-		// prevent path traversal through crafted keys
-		if (!target.startsWith(this.baseDir)) {
-			throw new AppError(httpStatus.BAD_REQUEST, 'Invalid file key!');
-		}
-		return target;
-	}
-}
-
-// ---------------------------------------------------------------------------
-// cloudinary
-// ---------------------------------------------------------------------------
 
 type TCloudinaryKey = {
 	deliveryType: 'upload' | 'authenticated';
@@ -145,7 +75,7 @@ export const decodeCloudinaryKey = (key: string): TCloudinaryKey => {
 	const [deliveryType, resourceType, ...rest] = key.split(':');
 	const publicId = rest.join(':');
 
-	// keys written by another provider (or older local keys) fall back to sane defaults
+	// tolerate keys that were written before this format existed
 	if (!publicId || !['upload', 'authenticated'].includes(deliveryType)) {
 		return { deliveryType: 'upload', resourceType: 'image', publicId: key };
 	}
@@ -229,36 +159,21 @@ class CloudinaryStorageProvider implements IStorageProvider {
 		});
 	}
 
-	async locate(key: string): Promise<TFileLocation> {
+	async locate(key: string): Promise<string> {
 		const { deliveryType, resourceType, publicId } = decodeCloudinaryKey(key);
 
-		return {
-			kind: 'url',
-			url: cloudinary.url(publicId, {
-				resource_type: resourceType,
-				type: deliveryType,
-				secure: true,
-				// private assets are only delivered through a signed url
-				sign_url: deliveryType === 'authenticated'
-			})
-		};
+		return cloudinary.url(publicId, {
+			resource_type: resourceType,
+			type: deliveryType,
+			secure: true,
+			// private assets are only delivered through a signed url
+			sign_url: deliveryType === 'authenticated'
+		});
 	}
 }
 
-// ---------------------------------------------------------------------------
-// provider selection
-// ---------------------------------------------------------------------------
-
-export const createStorageProvider = (provider = config.storage.provider): IStorageProvider => {
-	switch (provider) {
-		case 'cloudinary':
-			return new CloudinaryStorageProvider();
-		case 'local':
-			return new LocalStorageProvider(config.storage.local_dir);
-		default:
-			throw new Error(`Unknown STORAGE_PROVIDER "${provider}". Supported providers: local, cloudinary.`);
-	}
-};
+/** Exposed for tests; the application uses the shared `storage` instance below. */
+export const createStorageProvider = (): IStorageProvider => new CloudinaryStorageProvider();
 
 export const storage: IStorageProvider = createStorageProvider();
 
