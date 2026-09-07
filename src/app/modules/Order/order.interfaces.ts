@@ -83,6 +83,21 @@ export type TOrderStatusHistoryEntry = {
 	note?: string;
 };
 
+/**
+ * One admin price adjustment. Kept separate from `statusHistory` because that entry is
+ * status centric - its `status` is required - and a pricing change moves no status.
+ */
+export type TPricingHistoryEntry = {
+	at: Date;
+	byId?: string;
+	byRole?: string;
+	previousTotal: number;
+	newTotal: number;
+	manualDiscount: number;
+	deliveryCharge: number;
+	note?: string;
+};
+
 export type TOrder = {
 	id: string;
 	orderNumber: string;
@@ -91,15 +106,22 @@ export type TOrder = {
 	shippingAddress: TShippingAddress;
 	items: TOrderItem[];
 	subtotal: number;
+	/** Item level discount, derived from the catalogue at checkout. Never set by hand. */
 	discount: number;
+	/** Absolute amount an admin negotiated off this order, on top of `discount`. */
+	manualDiscount: number;
 	deliveryCharge: number;
+	/** True once an admin set the charge for this order, so a later recalculation keeps it. */
+	deliveryChargeOverridden: boolean;
 	deliveryArea?: string;
+	/** total = subtotal - discount - manualDiscount + deliveryCharge */
 	total: number;
 	paymentMethod: PaymentMethod;
 	paymentStatus: PaymentStatus;
 	paymentId?: string;
 	status: OrderStatus;
 	statusHistory: TOrderStatusHistoryEntry[];
+	pricingHistory: TPricingHistoryEntry[];
 	customerNotes?: string;
 	adminNotes?: string;
 	stockRestored: boolean;
@@ -184,4 +206,24 @@ export type TOrderFilters = {
 export type TUpdateOrderStatusPayload = {
 	status: OrderStatus;
 	note?: string;
+};
+
+/**
+ * Admin price adjustment. Every field is optional but at least one of `manualDiscount`,
+ * `deliveryCharge` or `resetDelivery` must be present. No total is ever accepted.
+ */
+export type TAdjustOrderPricingPayload = {
+	manualDiscount?: number;
+	deliveryCharge?: number;
+	resetDelivery?: boolean;
+	note?: string;
+};
+
+export type TOrderPricingResult = {
+	order: TOrder;
+	/**
+	 * Amount owed back to the customer: the verified payment minus the new total.
+	 * 0 whenever nothing was overpaid.
+	 */
+	refundDue: number;
 };

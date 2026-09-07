@@ -46,3 +46,41 @@ export const calculateOrderTotals = (lines: TPriceableLine[], deliveryCharge = 0
 		total: roundMoney(subtotal - discount + charge)
 	};
 };
+
+export type TAdjustedTotalsInput = {
+	/** Sum of listPrice * quantity, as stored on the order. */
+	subtotal: number;
+	/** Item level discount, derived at checkout from the catalogue prices. */
+	discount: number;
+	/** Absolute amount an admin negotiated off, on top of the item discount. */
+	manualDiscount?: number;
+	deliveryCharge: number;
+};
+
+export type TAdjustedTotals = TOrderTotals & { manualDiscount: number };
+
+/**
+ * Recalculates an existing order's total after an admin adjustment.
+ *
+ * total = subtotal - discount - manualDiscount + deliveryCharge
+ *
+ * `discount` stays the derived item level figure so it remains auditable; a negotiated
+ * amount is carried separately in `manualDiscount`.
+ */
+export const calculateAdjustedTotals = (input: TAdjustedTotalsInput): TAdjustedTotals => {
+	const subtotal = roundMoney(input.subtotal);
+	const discount = roundMoney(input.discount);
+	const manualDiscount = roundMoney(input.manualDiscount && input.manualDiscount > 0 ? input.manualDiscount : 0);
+	const deliveryCharge = roundMoney(input.deliveryCharge < 0 ? 0 : input.deliveryCharge);
+
+	return {
+		subtotal,
+		discount,
+		manualDiscount,
+		deliveryCharge,
+		total: roundMoney(subtotal - discount - manualDiscount + deliveryCharge)
+	};
+};
+
+/** The item amount a manual discount is allowed to eat into. */
+export const calculateItemsPayable = (subtotal: number, discount: number): number => roundMoney(subtotal - discount);

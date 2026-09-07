@@ -87,6 +87,16 @@ const cancelOrder: RequestHandler = catchAsync(async (req, res) => {
 	});
 });
 
+const adjustOrderPricing: RequestHandler = catchAsync(async (req, res) => {
+	const result = await OrderServices.adjustOrderPricing(req.params.id, req.body, req.user);
+	sendResponse(res, {
+		statusCode: httpStatus.OK,
+		success: true,
+		message: 'Order pricing updated successfully!',
+		data: result
+	});
+});
+
 const updateAdminNotes: RequestHandler = catchAsync(async (req, res) => {
 	const result = await OrderServices.updateAdminNotes(req.params.id, req.body.adminNotes);
 	sendResponse(res, {
@@ -115,6 +125,7 @@ const OrderControllers = {
 	getOrderById,
 	trackOrder,
 	updateOrderStatus,
+	adjustOrderPricing,
 	cancelOrder,
 	updateAdminNotes,
 	getPaymentInstructions

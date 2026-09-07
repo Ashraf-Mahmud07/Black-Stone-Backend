@@ -4213,6 +4213,124 @@
         }
       }
     },
+    "/api/orders/{id}/pricing": {
+      "patch": {
+        "tags": [
+          "Orders",
+          "Admin"
+        ],
+        "summary": "Adjust the order pricing",
+        "description": "**Admin.** Applies a negotiated price to an existing order: an absolute `manualDiscount` on top of the item level discount, and/or a `deliveryCharge` for this order only (`resetDelivery: true` drops that override and re-resolves the charge from the delivery settings). The total is always recalculated on the server as `subtotal - discount - manualDiscount + deliveryCharge`; sending `total`, `subtotal` or `discount` is rejected with 400. The derived item `discount` is never overwritten, so it stays auditable. Every adjustment appends an entry to `pricingHistory` with the admin id, the previous and new total, and the note. Pricing is final once an order is `delivered` or `cancelled` (400). If the payment is already `verified` and the new total is lower, the adjustment is still applied and `refundDue` reports what the customer overpaid - record the refund itself with `PATCH /api/payments/{id}/refund`. While a payment is not yet verified its payable amount follows the new total, so `GET /api/orders/{id}/payment-instructions` shows the adjusted amount.",
+        "operationId": "adjustOrderPricing",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IdParam"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdjustOrderPricingRequest"
+              },
+              "examples": {
+                "negotiatedDiscount": {
+                  "summary": "Honour a negotiated price",
+                  "value": {
+                    "manualDiscount": 250,
+                    "note": "Negotiated over phone"
+                  }
+                },
+                "waiveDelivery": {
+                  "summary": "Waive the delivery charge for this order",
+                  "value": {
+                    "deliveryCharge": 0,
+                    "note": "Goodwill - late delivery"
+                  }
+                },
+                "resetDelivery": {
+                  "summary": "Go back to the area delivery charge",
+                  "value": {
+                    "resetDelivery": true
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Order pricing updated successfully!",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Order pricing updated successfully!"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/OrderPricingResult"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Empty body, an unknown field such as `total`, both `deliveryCharge` and `resetDelivery`, a negative amount, a manual discount larger than the item total, a resulting total below 0, or an order that is already delivered or cancelled.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "success": false,
+                  "message": "A manual discount of 2000 exceeds the item total of 1440 for this order.",
+                  "errorSources": [
+                    {
+                      "path": "",
+                      "message": "A manual discount of 2000 exceeds the item total of 1440 for this order."
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      }
+    },
     "/api/orders/{id}/notes": {
       "patch": {
         "tags": [
@@ -7392,6 +7510,68 @@
           "at"
         ]
       },
+      "PricingHistoryEntry": {
+        "type": "object",
+        "description": "One admin price adjustment, recorded for audit.",
+        "properties": {
+          "at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "byId": {
+            "type": "string",
+            "pattern": "^[a-f\\d]{24}$",
+            "example": "6650f1a2b3c4d5e6f7a8b9c0",
+            "description": "Admin who made the adjustment.",
+            "nullable": true
+          },
+          "byRole": {
+            "type": "string",
+            "nullable": true,
+            "enum": [
+              "admin"
+            ],
+            "example": "admin"
+          },
+          "previousTotal": {
+            "type": "number",
+            "minimum": 0,
+            "example": 1500,
+            "description": "Amount in BDT."
+          },
+          "newTotal": {
+            "type": "number",
+            "minimum": 0,
+            "example": 1250,
+            "description": "Amount in BDT."
+          },
+          "manualDiscount": {
+            "type": "number",
+            "minimum": 0,
+            "example": 250,
+            "description": "Amount in BDT."
+          },
+          "deliveryCharge": {
+            "type": "number",
+            "minimum": 0,
+            "example": 0,
+            "description": "Amount in BDT."
+          },
+          "note": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 500,
+            "example": "Negotiated over phone"
+          }
+        },
+        "required": [
+          "at",
+          "previousTotal",
+          "newTotal",
+          "manualDiscount",
+          "deliveryCharge"
+        ]
+      },
       "Order": {
         "type": "object",
         "description": "Order status and payment status are independent - see the `status` and `paymentStatus` fields.",
@@ -7436,13 +7616,26 @@
             "type": "number",
             "minimum": 0,
             "example": 260,
-            "description": "Amount in BDT."
+            "description": "Item level discount, derived from the catalogue at checkout. Never set by hand."
+          },
+          "manualDiscount": {
+            "type": "number",
+            "minimum": 0,
+            "example": 250,
+            "description": "Absolute amount an admin negotiated off this order, on top of `discount`.",
+            "default": 0
           },
           "deliveryCharge": {
             "type": "number",
             "minimum": 0,
             "example": 60,
             "description": "Amount in BDT."
+          },
+          "deliveryChargeOverridden": {
+            "type": "boolean",
+            "example": false,
+            "default": false,
+            "description": "True once an admin set the charge for this order, so it survives a recalculation."
           },
           "deliveryArea": {
             "type": "string",
@@ -7453,7 +7646,7 @@
             "type": "number",
             "minimum": 0,
             "example": 1500,
-            "description": "subtotal - discount + deliveryCharge."
+            "description": "subtotal - discount - manualDiscount + deliveryCharge."
           },
           "paymentMethod": {
             "type": "string",
@@ -7500,6 +7693,13 @@
             "items": {
               "$ref": "#/components/schemas/OrderStatusHistoryEntry"
             }
+          },
+          "pricingHistory": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PricingHistoryEntry"
+            },
+            "description": "Admin price adjustments, oldest first."
           },
           "customerNotes": {
             "type": "string",
@@ -7554,13 +7754,35 @@
           "items",
           "subtotal",
           "discount",
+          "manualDiscount",
           "deliveryCharge",
+          "deliveryChargeOverridden",
           "total",
           "paymentMethod",
           "paymentStatus",
           "status",
           "statusHistory",
+          "pricingHistory",
           "stockRestored"
+        ]
+      },
+      "OrderPricingResult": {
+        "type": "object",
+        "description": "The recalculated order plus any amount owed back to the customer.",
+        "properties": {
+          "order": {
+            "$ref": "#/components/schemas/Order"
+          },
+          "refundDue": {
+            "type": "number",
+            "minimum": 0,
+            "example": 0,
+            "description": "Only non-zero when the payment was already `verified` and the new total is lower than the amount paid. The adjustment is still applied - the refund itself is handled out of band and can be recorded with `PATCH /api/payments/{id}/refund`."
+          }
+        },
+        "required": [
+          "order",
+          "refundDue"
         ]
       },
       "CheckoutSummaryItem": {
@@ -9274,6 +9496,34 @@
         "required": [
           "adminNotes"
         ]
+      },
+      "AdjustOrderPricingRequest": {
+        "type": "object",
+        "description": "Every field is optional, but at least one of `manualDiscount`, `deliveryCharge` or `resetDelivery` must be sent. Any other property - including `total`, `subtotal` or `discount` - is rejected with 400: totals are always recalculated on the server.",
+        "properties": {
+          "manualDiscount": {
+            "type": "number",
+            "minimum": 0,
+            "example": 250,
+            "description": "Absolute BDT off, on top of the item discount. Send 0 to clear it."
+          },
+          "deliveryCharge": {
+            "type": "number",
+            "minimum": 0,
+            "example": 0,
+            "description": "Delivery charge for this order only. Marks the charge as overridden."
+          },
+          "resetDelivery": {
+            "type": "boolean",
+            "example": true,
+            "description": "Drops the override and re-resolves the charge from the delivery area settings."
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 500,
+            "example": "Negotiated over phone"
+          }
+        }
       },
       "SubmitPaymentUpload": {
         "type": "object",

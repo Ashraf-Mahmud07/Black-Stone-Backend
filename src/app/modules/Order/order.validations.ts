@@ -64,6 +64,38 @@ const adminNotesValidation = z.object({
 	})
 });
 
+/**
+ * `.strict()` rejects anything not listed here - notably a client supplied `total`,
+ * `subtotal` or `discount`. Amounts are only ever calculated on the server.
+ */
+const adjustPricingValidation = z.object({
+	body: z
+		.object({
+			manualDiscount: z
+				.number({ invalid_type_error: 'Manual discount must be a number!' })
+				.nonnegative('Manual discount cannot be negative!')
+				.optional(),
+			deliveryCharge: z
+				.number({ invalid_type_error: 'Delivery charge must be a number!' })
+				.nonnegative('Delivery charge cannot be negative!')
+				.optional(),
+			resetDelivery: z.boolean().optional(),
+			note: z.string().max(500, 'Note is too long!').optional()
+		})
+		.strict()
+		.refine((body) => !(body.deliveryCharge !== undefined && body.resetDelivery === true), {
+			message: 'Send either a deliveryCharge or resetDelivery, not both!',
+			path: ['deliveryCharge']
+		})
+		.refine(
+			(body) => body.manualDiscount !== undefined || body.deliveryCharge !== undefined || body.resetDelivery === true,
+			{
+				message: 'Provide at least one of manualDiscount, deliveryCharge or resetDelivery!',
+				path: ['manualDiscount']
+			}
+		)
+});
+
 const trackOrderValidation = z.object({
 	body: z.object({
 		orderNumber: z.string({ required_error: 'Order number is required!' }).min(4, 'Invalid order number!'),
@@ -77,6 +109,7 @@ const OrderValidations = {
 	updateOrderStatusValidation,
 	cancelOrderValidation,
 	adminNotesValidation,
+	adjustPricingValidation,
 	trackOrderValidation
 };
 

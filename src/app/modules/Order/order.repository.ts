@@ -2,7 +2,14 @@ import { FilterQuery } from 'mongoose';
 import { buildSort, escapeRegex, isValidId } from '../../DB/dbHelpers';
 import { TPaginatedResult, TPaginationOptions } from '../../interface/common';
 import { buildMeta } from '../../utils/pagination';
-import { OrderStatus, PaymentStatus, TOrder, TOrderFilters, TOrderStatusHistoryEntry } from './order.interfaces';
+import {
+	OrderStatus,
+	PaymentStatus,
+	TOrder,
+	TOrderFilters,
+	TOrderStatusHistoryEntry,
+	TPricingHistoryEntry
+} from './order.interfaces';
 import { Order, TOrderDocument } from './order.model';
 import { generateOrderNumber } from './order.utils';
 
@@ -26,7 +33,9 @@ const toOrder = (doc: TOrderDocument): TOrder => ({
 	})),
 	subtotal: doc.subtotal,
 	discount: doc.discount ?? 0,
+	manualDiscount: doc.manualDiscount ?? 0,
 	deliveryCharge: doc.deliveryCharge ?? 0,
+	deliveryChargeOverridden: doc.deliveryChargeOverridden ?? false,
 	deliveryArea: doc.deliveryArea,
 	total: doc.total,
 	paymentMethod: doc.paymentMethod,
@@ -34,6 +43,7 @@ const toOrder = (doc: TOrderDocument): TOrder => ({
 	paymentId: doc.payment ? String(doc.payment) : undefined,
 	status: doc.status,
 	statusHistory: doc.statusHistory ?? [],
+	pricingHistory: doc.pricingHistory ?? [],
 	customerNotes: doc.customerNotes,
 	adminNotes: doc.adminNotes,
 	stockRestored: doc.stockRestored ?? false,
@@ -145,6 +155,27 @@ const updateStatus = async (id: string, update: TStatusUpdate): Promise<TOrder |
 	return updated ? toOrder(updated as TOrderDocument) : null;
 };
 
+type TPricingUpdate = {
+	manualDiscount: number;
+	deliveryCharge: number;
+	deliveryChargeOverridden: boolean;
+	total: number;
+	historyEntry: TPricingHistoryEntry;
+};
+
+/** Writes the recalculated amounts and appends the audit entry in one atomic update. */
+const updatePricing = async (id: string, update: TPricingUpdate): Promise<TOrder | null> => {
+	if (!isValidId(id)) return null;
+	const { historyEntry, ...fields } = update;
+
+	const updated = await Order.findByIdAndUpdate(
+		id,
+		{ $set: fields, $push: { pricingHistory: historyEntry } },
+		{ new: true, runValidators: true }
+	).lean();
+	return updated ? toOrder(updated as TOrderDocument) : null;
+};
+
 const updatePaymentStatus = async (id: string, paymentStatus: PaymentStatus): Promise<TOrder | null> => {
 	if (!isValidId(id)) return null;
 	const updated = await Order.findByIdAndUpdate(id, { paymentStatus }, { new: true }).lean();
@@ -220,6 +251,7 @@ const OrderRepository = {
 	findByOrderNumber,
 	findMany,
 	updateStatus,
+	updatePricing,
 	updatePaymentStatus,
 	attachPayment,
 	updateAdminNotes,

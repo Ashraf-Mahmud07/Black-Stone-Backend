@@ -358,6 +358,30 @@ const CancelOrderRequest: TSchemaObject = {
 	properties: { reason: { type: 'string', maxLength: 500, example: 'Ordered the wrong colour' } }
 };
 
+const AdjustOrderPricingRequest: TSchemaObject = {
+	type: 'object',
+	description:
+		'Every field is optional, but at least one of `manualDiscount`, `deliveryCharge` or `resetDelivery` must be sent. Any other property - including `total`, `subtotal` or `discount` - is rejected with 400: totals are always recalculated on the server.',
+	properties: {
+		manualDiscount: {
+			...money,
+			example: 250,
+			description: 'Absolute BDT off, on top of the item discount. Send 0 to clear it.'
+		},
+		deliveryCharge: {
+			...money,
+			example: 0,
+			description: 'Delivery charge for this order only. Marks the charge as overridden.'
+		},
+		resetDelivery: {
+			type: 'boolean',
+			example: true,
+			description: 'Drops the override and re-resolves the charge from the delivery area settings.'
+		},
+		note: { type: 'string', maxLength: 500, example: 'Negotiated over phone' }
+	}
+};
+
 const AdminNotesRequest: TSchemaObject = {
 	type: 'object',
 	properties: {
@@ -508,6 +532,7 @@ export const requestSchemas: Record<string, TSchemaObject> = {
 	UpdateOrderStatusRequest,
 	CancelOrderRequest,
 	AdminNotesRequest,
+	AdjustOrderPricingRequest,
 	SubmitPaymentUpload,
 	VerifyPaymentRequest,
 	RejectPaymentRequest,

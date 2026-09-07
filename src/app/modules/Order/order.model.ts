@@ -7,6 +7,7 @@ import {
 	TCustomerSnapshot,
 	TOrderItem,
 	TOrderStatusHistoryEntry,
+	TPricingHistoryEntry,
 	TShippingAddress
 } from './order.interfaces';
 
@@ -19,7 +20,9 @@ export type TOrderDocument = {
 	items: TOrderItem[];
 	subtotal: number;
 	discount: number;
+	manualDiscount: number;
 	deliveryCharge: number;
+	deliveryChargeOverridden: boolean;
 	deliveryArea?: string;
 	total: number;
 	paymentMethod: PaymentMethod;
@@ -27,6 +30,7 @@ export type TOrderDocument = {
 	payment?: Types.ObjectId;
 	status: OrderStatus;
 	statusHistory: TOrderStatusHistoryEntry[];
+	pricingHistory: TPricingHistoryEntry[];
 	customerNotes?: string;
 	adminNotes?: string;
 	stockRestored: boolean;
@@ -112,6 +116,20 @@ const StatusHistorySchema = new Schema<TOrderStatusHistoryEntry>(
 	{ _id: false }
 );
 
+const PricingHistorySchema = new Schema<TPricingHistoryEntry>(
+	{
+		at: { type: Date, default: Date.now },
+		byId: { type: String },
+		byRole: { type: String },
+		previousTotal: { type: Number, required: true, min: 0 },
+		newTotal: { type: Number, required: true, min: 0 },
+		manualDiscount: { type: Number, required: true, min: 0 },
+		deliveryCharge: { type: Number, required: true, min: 0 },
+		note: { type: String }
+	},
+	{ _id: false }
+);
+
 const orderSchema = new Schema<TOrderDocument>(
 	{
 		orderNumber: {
@@ -127,7 +145,9 @@ const orderSchema = new Schema<TOrderDocument>(
 		items: { type: [OrderItemSchema], required: true },
 		subtotal: { type: Number, required: true, min: 0 },
 		discount: { type: Number, default: 0, min: 0 },
+		manualDiscount: { type: Number, default: 0, min: [0, 'Manual discount cannot be negative!'] },
 		deliveryCharge: { type: Number, default: 0, min: 0 },
+		deliveryChargeOverridden: { type: Boolean, default: false },
 		deliveryArea: { type: String },
 		total: { type: Number, required: true, min: 0 },
 		paymentMethod: {
@@ -149,6 +169,7 @@ const orderSchema = new Schema<TOrderDocument>(
 			index: true
 		},
 		statusHistory: { type: [StatusHistorySchema], default: [] },
+		pricingHistory: { type: [PricingHistorySchema], default: [] },
 		customerNotes: { type: String },
 		adminNotes: { type: String },
 		stockRestored: { type: Boolean, default: false },

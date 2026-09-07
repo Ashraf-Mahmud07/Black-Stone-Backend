@@ -46,6 +46,13 @@ router.patch(
 );
 
 router.patch(
+	'/:id/pricing',
+	AuthGuard(UserRole.Admin),
+	validateRequest(OrderValidations.adjustPricingValidation),
+	OrderControllers.adjustOrderPricing
+);
+
+router.patch(
 	'/:id/notes',
 	AuthGuard(UserRole.Admin),
 	validateRequest(OrderValidations.adminNotesValidation),

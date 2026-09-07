@@ -469,6 +469,22 @@ const OrderStatusHistoryEntry: TSchemaObject = {
 	required: ['status', 'at']
 };
 
+const PricingHistoryEntry: TSchemaObject = {
+	type: 'object',
+	description: 'One admin price adjustment, recorded for audit.',
+	properties: {
+		at: { type: 'string', format: 'date-time' },
+		byId: { ...objectId, nullable: true, description: 'Admin who made the adjustment.' },
+		byRole: { type: 'string', nullable: true, enum: [UserRole.Admin], example: UserRole.Admin },
+		previousTotal: { ...money, example: 1500 },
+		newTotal: { ...money, example: 1250 },
+		manualDiscount: { ...money, example: 250 },
+		deliveryCharge: { ...money, example: 0 },
+		note: { type: 'string', nullable: true, maxLength: 500, example: 'Negotiated over phone' }
+	},
+	required: ['at', 'previousTotal', 'newTotal', 'manualDiscount', 'deliveryCharge']
+};
+
 const Order: TSchemaObject = {
 	type: 'object',
 	description: 'Order status and payment status are independent - see the `status` and `paymentStatus` fields.',
@@ -480,15 +496,36 @@ const Order: TSchemaObject = {
 		shippingAddress: ref('ShippingAddress'),
 		items: { type: 'array', items: ref('OrderItem') },
 		subtotal: { ...money, example: 1700, description: 'Sum of listPrice * quantity.' },
-		discount: { ...money, example: 260 },
+		discount: {
+			...money,
+			example: 260,
+			description: 'Item level discount, derived from the catalogue at checkout. Never set by hand.'
+		},
+		manualDiscount: {
+			...money,
+			example: 250,
+			default: 0,
+			description: 'Absolute amount an admin negotiated off this order, on top of `discount`.'
+		},
 		deliveryCharge: { ...money, example: 60 },
+		deliveryChargeOverridden: {
+			type: 'boolean',
+			example: false,
+			default: false,
+			description: 'True once an admin set the charge for this order, so it survives a recalculation.'
+		},
 		deliveryArea: { type: 'string', nullable: true, example: 'inside-dhaka' },
-		total: { ...money, example: 1500, description: 'subtotal - discount + deliveryCharge.' },
+		total: { ...money, example: 1500, description: 'subtotal - discount - manualDiscount + deliveryCharge.' },
 		paymentMethod: { type: 'string', enum: enumValues(PaymentMethod), example: PaymentMethod.Bkash },
 		paymentStatus: { type: 'string', enum: enumValues(PaymentStatus), example: PaymentStatus.Pending },
 		paymentId: { ...objectId, nullable: true },
 		status: { type: 'string', enum: enumValues(OrderStatus), example: OrderStatus.Pending },
 		statusHistory: { type: 'array', items: ref('OrderStatusHistoryEntry') },
+		pricingHistory: {
+			type: 'array',
+			items: ref('PricingHistoryEntry'),
+			description: 'Admin price adjustments, oldest first.'
+		},
 		customerNotes: { type: 'string', nullable: true, maxLength: 500, example: 'Gift wrap please' },
 		adminNotes: { type: 'string', nullable: true, example: 'Customer requested evening delivery' },
 		stockRestored: { type: 'boolean', example: false, description: 'True once cancelled stock has been returned.' },
@@ -507,14 +544,32 @@ const Order: TSchemaObject = {
 		'items',
 		'subtotal',
 		'discount',
+		'manualDiscount',
 		'deliveryCharge',
+		'deliveryChargeOverridden',
 		'total',
 		'paymentMethod',
 		'paymentStatus',
 		'status',
 		'statusHistory',
+		'pricingHistory',
 		'stockRestored'
 	]
+};
+
+const OrderPricingResult: TSchemaObject = {
+	type: 'object',
+	description: 'The recalculated order plus any amount owed back to the customer.',
+	properties: {
+		order: ref('Order'),
+		refundDue: {
+			...money,
+			example: 0,
+			description:
+				'Only non-zero when the payment was already `verified` and the new total is lower than the amount paid. The adjustment is still applied - the refund itself is handled out of band and can be recorded with `PATCH /api/payments/{id}/refund`.'
+		}
+	},
+	required: ['order', 'refundDue']
 };
 
 const CheckoutSummaryItem: TSchemaObject = {
@@ -792,7 +847,9 @@ export const schemas: Record<string, TSchemaObject> = {
 	VariantSnapshot,
 	OrderItem,
 	OrderStatusHistoryEntry,
+	PricingHistoryEntry,
 	Order,
+	OrderPricingResult,
 	CheckoutSummaryItem,
 	CheckoutSummary,
 	PaymentInstructions,

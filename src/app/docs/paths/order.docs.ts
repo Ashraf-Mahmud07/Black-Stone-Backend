@@ -342,6 +342,65 @@ export const orderPaths: TPathsObject = {
 		}
 	},
 
+	'/api/orders/{id}/pricing': {
+		patch: {
+			tags: [TAG, 'Admin'],
+			summary: 'Adjust the order pricing',
+			description:
+				'**Admin.** Applies a negotiated price to an existing order: an absolute `manualDiscount` on top of the item level discount, and/or a `deliveryCharge` for this order only (`resetDelivery: true` drops that override and re-resolves the charge from the delivery settings). ' +
+				'The total is always recalculated on the server as `subtotal - discount - manualDiscount + deliveryCharge`; sending `total`, `subtotal` or `discount` is rejected with 400. The derived item `discount` is never overwritten, so it stays auditable. Every adjustment appends an entry to `pricingHistory` with the admin id, the previous and new total, and the note. ' +
+				'Pricing is final once an order is `delivered` or `cancelled` (400). If the payment is already `verified` and the new total is lower, the adjustment is still applied and `refundDue` reports what the customer overpaid - record the refund itself with `PATCH /api/payments/{id}/refund`. While a payment is not yet verified its payable amount follows the new total, so `GET /api/orders/{id}/payment-instructions` shows the adjusted amount.',
+			operationId: 'adjustOrderPricing',
+			security: bearerAuth,
+			parameters: [parameterRef('IdParam')],
+			requestBody: {
+				required: true,
+				content: {
+					'application/json': {
+						schema: ref('AdjustOrderPricingRequest'),
+						examples: {
+							negotiatedDiscount: {
+								summary: 'Honour a negotiated price',
+								value: { manualDiscount: 250, note: 'Negotiated over phone' }
+							},
+							waiveDelivery: {
+								summary: 'Waive the delivery charge for this order',
+								value: { deliveryCharge: 0, note: 'Goodwill - late delivery' }
+							},
+							resetDelivery: {
+								summary: 'Go back to the area delivery charge',
+								value: { resetDelivery: true }
+							}
+						}
+					}
+				}
+			},
+			responses: {
+				'200': successResponse('Order pricing updated successfully!', ref('OrderPricingResult')),
+				'400': {
+					description:
+						'Empty body, an unknown field such as `total`, both `deliveryCharge` and `resetDelivery`, a negative amount, a manual discount larger than the item total, a resulting total below 0, or an order that is already delivered or cancelled.',
+					content: {
+						'application/json': {
+							schema: ref('ErrorResponse'),
+							example: {
+								success: false,
+								message: 'A manual discount of 2000 exceeds the item total of 1440 for this order.',
+								errorSources: [
+									{ path: '', message: 'A manual discount of 2000 exceeds the item total of 1440 for this order.' }
+								]
+							}
+						}
+					}
+				},
+				'401': responseRef('Unauthorized'),
+				'403': responseRef('Forbidden'),
+				'404': responseRef('NotFound'),
+				'500': responseRef('ServerError')
+			}
+		}
+	},
+
 	'/api/orders/{id}/notes': {
 		patch: {
 			tags: [TAG, 'Admin'],

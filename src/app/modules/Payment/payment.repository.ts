@@ -112,6 +112,16 @@ const update = async (
 	return updated ? toPayment(updated as TPaymentDocument) : null;
 };
 
+/**
+ * Keeps the payable amount in step with an admin price adjustment. Only used while the
+ * payment has not been verified - a verified payment record is never rewritten.
+ */
+const updateAmount = async (id: string, amount: number): Promise<TPayment | null> => {
+	if (!isValidId(id)) return null;
+	const updated = await Payment.findByIdAndUpdate(id, { amount }, { new: true, runValidators: true }).lean();
+	return updated ? toPayment(updated as TPaymentDocument) : null;
+};
+
 const removeByOrderId = async (orderId: string): Promise<void> => {
 	if (!isValidId(orderId)) return;
 	await Payment.deleteOne({ order: orderId });
@@ -126,6 +136,7 @@ const PaymentRepository = {
 	findByTransactionId,
 	findMany,
 	update,
+	updateAmount,
 	removeByOrderId,
 	count
 };

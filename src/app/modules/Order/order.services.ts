@@ -3,7 +3,7 @@ import AppError from '../../errors/AppError';
 import { TAuthUser, UserRole } from '../../interface/auth';
 import { TPaginatedResult } from '../../interface/common';
 import { calculatePagination } from '../../utils/pagination';
-import { calculateOrderTotals, roundMoney } from '../../utils/pricing';
+import { calculateAdjustedTotals, calculateItemsPayable, calculateOrderTotals, roundMoney } from '../../utils/pricing';
 import { buildVariantLabel } from '../Cart/cart.services';
 import CartRepository from '../Cart/cart.repository';
 import DeliveryRepository from '../Delivery/delivery.repository';
@@ -16,6 +16,7 @@ import {
 	OrderStatus,
 	PaymentMethod,
 	PaymentStatus,
+	TAdjustOrderPricingPayload,
 	TCheckoutItemInput,
 	TCheckoutPayload,
 	TCheckoutPreviewPayload,
@@ -23,6 +24,7 @@ import {
 	TOrder,
 	TOrderFilters,
 	TOrderItem,
+	TOrderPricingResult,
 	TPaymentInstructions,
 	TUpdateOrderStatusPayload
 } from './order.interfaces';
@@ -205,13 +207,16 @@ const createOrder = async (payload: TCheckoutPayload, authUser?: TAuthUser): Pro
 			items: toOrderItems(lines),
 			subtotal: summary.subtotal,
 			discount: summary.discount,
+			manualDiscount: 0,
 			deliveryCharge: summary.deliveryCharge,
+			deliveryChargeOverridden: false,
 			deliveryArea: summary.deliveryArea,
 			total: summary.total,
 			paymentMethod: payload.paymentMethod,
 			paymentStatus,
 			status: OrderStatus.Pending,
 			statusHistory: [{ status: OrderStatus.Pending, at: new Date(), note: 'Order placed' }],
+			pricingHistory: [],
 			customerNotes: payload.customerNotes,
 			stockRestored: false
 		});
@@ -390,6 +395,112 @@ const cancelOrder = async (id: string, authUser: TAuthUser, reason?: string): Pr
 	return updated as TOrder;
 };
 
+// ---------------------------------------------------------------------------
+// pricing adjustment
+// ---------------------------------------------------------------------------
+
+/** Once an order is delivered or cancelled its money is settled and cannot move. */
+const PRICING_LOCKED_STATUSES: OrderStatus[] = [OrderStatus.Delivered, OrderStatus.Cancelled];
+
+/**
+ * Applies an admin price adjustment: a negotiated amount off (`manualDiscount`) and/or a
+ * delivery charge for this order only. The total is always recalculated from the stored
+ * order - no amount is ever taken from the client.
+ *
+ * A verified payment is never silently changed: if the new total is lower than what the
+ * customer already paid, the adjustment is applied and `refundDue` reports the difference
+ * so the admin UI can act on it.
+ */
+const adjustOrderPricing = async (
+	id: string,
+	payload: TAdjustOrderPricingPayload,
+	authUser: TAuthUser
+): Promise<TOrderPricingResult> => {
+	const order = await OrderRepository.findById(id);
+	if (!order) {
+		throw new AppError(httpStatus.NOT_FOUND, 'Order not found!');
+	}
+
+	if (PRICING_LOCKED_STATUSES.includes(order.status)) {
+		throw new AppError(httpStatus.BAD_REQUEST, `The pricing of a ${order.status} order can no longer be changed.`);
+	}
+
+	// --- delivery charge: explicit override, reset to the area rate, or left untouched
+	let deliveryCharge = order.deliveryCharge;
+	let deliveryChargeOverridden = order.deliveryChargeOverridden;
+	const itemsPayable = calculateItemsPayable(order.subtotal, order.discount);
+
+	if (payload.resetDelivery) {
+		const setting = await DeliveryRepository.getSetting();
+		// the area rate is resolved against the item total, exactly as checkout did
+		deliveryCharge = resolveDeliveryCharge(setting, itemsPayable, order.deliveryArea).deliveryCharge;
+		deliveryChargeOverridden = false;
+	} else if (payload.deliveryCharge !== undefined) {
+		if (payload.deliveryCharge < 0) {
+			throw new AppError(httpStatus.BAD_REQUEST, 'Delivery charge cannot be negative!');
+		}
+		deliveryCharge = payload.deliveryCharge;
+		deliveryChargeOverridden = true;
+	}
+
+	// --- manual discount
+	const manualDiscount = payload.manualDiscount ?? order.manualDiscount;
+	if (manualDiscount < 0) {
+		throw new AppError(httpStatus.BAD_REQUEST, 'Manual discount cannot be negative!');
+	}
+	if (manualDiscount > 0 && manualDiscount > itemsPayable) {
+		throw new AppError(
+			httpStatus.BAD_REQUEST,
+			`A manual discount of ${manualDiscount} exceeds the item total of ${itemsPayable} for this order.`
+		);
+	}
+
+	const totals = calculateAdjustedTotals({
+		subtotal: order.subtotal,
+		discount: order.discount,
+		manualDiscount,
+		deliveryCharge
+	});
+
+	if (totals.total < 0) {
+		throw new AppError(httpStatus.BAD_REQUEST, 'This adjustment would make the order total negative!');
+	}
+
+	const payment = await PaymentRepository.findByOrderId(order.id);
+	const previousTotal = order.total;
+
+	const updated = await OrderRepository.updatePricing(id, {
+		manualDiscount: totals.manualDiscount,
+		deliveryCharge: totals.deliveryCharge,
+		deliveryChargeOverridden,
+		total: totals.total,
+		historyEntry: {
+			at: new Date(),
+			byId: authUser.id,
+			byRole: authUser.role,
+			previousTotal,
+			newTotal: totals.total,
+			manualDiscount: totals.manualDiscount,
+			deliveryCharge: totals.deliveryCharge,
+			note: payload.note
+		}
+	});
+
+	// an unpaid payment record must follow the order, so the amount the customer is asked
+	// for (and the admin verifies against) stays in step with the new total
+	if (payment && order.paymentStatus !== PaymentStatus.Verified && order.paymentStatus !== PaymentStatus.Refunded) {
+		await PaymentRepository.updateAmount(payment.id, totals.total);
+	}
+
+	const paidAmount = payment?.amount ?? previousTotal;
+	const refundDue =
+		order.paymentStatus === PaymentStatus.Verified && totals.total < paidAmount
+			? roundMoney(paidAmount - totals.total)
+			: 0;
+
+	return { order: updated as TOrder, refundDue };
+};
+
 const updateAdminNotes = async (id: string, adminNotes: string): Promise<TOrder> => {
 	const updated = await OrderRepository.updateAdminNotes(id, adminNotes);
 	if (!updated) {
@@ -414,6 +525,7 @@ const OrderServices = {
 	getOrderById,
 	trackOrder,
 	updateOrderStatus,
+	adjustOrderPricing,
 	cancelOrder,
 	updateAdminNotes,
 	getPaymentInstructions
