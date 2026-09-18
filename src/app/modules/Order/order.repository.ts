@@ -47,6 +47,8 @@ const toOrder = (doc: TOrderDocument): TOrder => ({
 	customerNotes: doc.customerNotes,
 	adminNotes: doc.adminNotes,
 	stockRestored: doc.stockRestored ?? false,
+	idempotencyKey: doc.idempotencyKey,
+	duplicateFingerprint: doc.duplicateFingerprint,
 	cancellationReason: doc.cancellationReason,
 	confirmedAt: doc.confirmedAt,
 	deliveredAt: doc.deliveredAt,
@@ -100,8 +102,9 @@ const create = async (payload: TCreateOrderData): Promise<TOrder> => {
 			});
 			return toOrder(created.toObject() as TOrderDocument);
 		} catch (error) {
-			const isDuplicate = (error as { code?: number })?.code === 11000;
-			if (!isDuplicate || attempt === 4) throw error;
+			const duplicate = error as { code?: number; keyPattern?: Record<string, unknown> };
+			const isOrderNumberClash = duplicate?.code === 11000 && Boolean(duplicate.keyPattern?.orderNumber);
+			if (!isOrderNumberClash || attempt === 4) throw error;
 		}
 	}
 
@@ -111,6 +114,20 @@ const create = async (payload: TCreateOrderData): Promise<TOrder> => {
 const findById = async (id: string): Promise<TOrder | null> => {
 	if (!isValidId(id)) return null;
 	const found = await Order.findById(id).lean();
+	return found ? toOrder(found as TOrderDocument) : null;
+};
+
+/** Exact duplicate lookup: the same request (or the same double click) was already handled. */
+const findByIdempotencyKey = async (idempotencyKey: string): Promise<TOrder | null> => {
+	const found = await Order.findOne({ idempotencyKey }).lean();
+	return found ? toOrder(found as TOrderDocument) : null;
+};
+
+/** Fallback duplicate lookup for clients that send no Idempotency-Key header. */
+const findRecentDuplicate = async (duplicateFingerprint: string, since: Date): Promise<TOrder | null> => {
+	const found = await Order.findOne({ duplicateFingerprint, createdAt: { $gte: since } })
+		.sort({ createdAt: -1 })
+		.lean();
 	return found ? toOrder(found as TOrderDocument) : null;
 };
 
@@ -248,6 +265,8 @@ const hasDeliveredPurchase = async (userId: string, productId: string): Promise<
 const OrderRepository = {
 	create,
 	findById,
+	findByIdempotencyKey,
+	findRecentDuplicate,
 	findByOrderNumber,
 	findMany,
 	updateStatus,

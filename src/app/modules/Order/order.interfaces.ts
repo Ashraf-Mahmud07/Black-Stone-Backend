@@ -1,4 +1,5 @@
 import { TImage } from '../../interface/common';
+import { DeliveryArea } from '../Delivery/delivery.interfaces';
 import { TSpecification } from '../Product/product.interfaces';
 
 export enum OrderStatus {
@@ -10,6 +11,11 @@ export enum OrderStatus {
 	Cancelled = 'cancelled'
 }
 
+/**
+ * The store is cash on delivery only: every order is created as `cod` server side.
+ * The wallet values stay in the enum so historical orders keep deserialising and online
+ * payment can be switched back on later without a migration.
+ */
 export enum PaymentMethod {
 	Bkash = 'bkash',
 	Nagad = 'nagad',
@@ -125,6 +131,10 @@ export type TOrder = {
 	customerNotes?: string;
 	adminNotes?: string;
 	stockRestored: boolean;
+	/** Set when the client sent an Idempotency-Key, or synthesised for the duplicate window. */
+	idempotencyKey?: string;
+	/** Hash of phone + area + basket, used to spot a double submission. */
+	duplicateFingerprint?: string;
 	cancellationReason?: string;
 	confirmedAt?: Date;
 	deliveredAt?: Date;
@@ -146,23 +156,40 @@ export type TCheckoutCustomerInput = {
 };
 
 /**
+ * Shipping address as the client sends it. `name` and `phone` are optional - the server
+ * copies them from `customer`, so checkout only has to collect them once.
+ */
+export type TCheckoutAddressInput = Omit<TShippingAddress, 'name' | 'phone'> & {
+	name?: string;
+	phone?: string;
+};
+
+/**
  * `source: 'cart'` uses the logged-in customer's server side cart.
  * `source: 'direct'` powers Buy Now and guest checkout with an explicit item list.
+ *
+ * Required inputs: `customer.name`, `customer.phone`, `shippingAddress.address`, `deliveryArea`.
  */
 export type TCheckoutPayload = {
 	source?: 'cart' | 'direct';
 	items?: TCheckoutItemInput[];
 	customer: TCheckoutCustomerInput;
-	shippingAddress: TShippingAddress;
-	deliveryArea?: string;
-	paymentMethod: PaymentMethod;
+	shippingAddress: TCheckoutAddressInput;
+	deliveryArea: DeliveryArea;
+	/** Accepted but ignored - the server always stores cash on delivery. */
+	paymentMethod?: PaymentMethod;
+	/** Compared against the server total and logged on mismatch. Never used for pricing. */
+	expectedTotal?: number;
+	/** Deprecated: customers no longer send notes. Still stored when present. */
 	customerNotes?: string;
+	/** From the `Idempotency-Key` request header. */
+	idempotencyKey?: string;
 };
 
 export type TCheckoutPreviewPayload = {
 	source?: 'cart' | 'direct';
 	items?: TCheckoutItemInput[];
-	deliveryArea?: string;
+	deliveryArea?: DeliveryArea;
 };
 
 export type TCheckoutSummary = {

@@ -16,7 +16,8 @@
 		"seed": "ts-node ./src/seed.ts",
 		"test:watch": "vitest",
 		"swagger:json": "ts-node ./src/scripts/exportOpenApi.ts",
-		"type-check:all": "tsc -p tsconfig.api.json"
+		"type-check:all": "tsc -p tsconfig.api.json",
+		"migrate:delivery-areas": "ts-node ./src/scripts/migrateDeliveryAreas.ts"
 	},
 	"keywords": [],
 	"author": "Ashraful Islam",

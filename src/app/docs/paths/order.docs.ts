@@ -1,23 +1,16 @@
+import { DeliveryArea } from '../../modules/Delivery/delivery.interfaces';
 import { OrderStatus, PaymentMethod, PaymentStatus } from '../../modules/Order/order.interfaces';
 import { TPathsObject, bearerAuth, listResponse, parameterRef, ref, responseRef, successResponse } from '../types';
 
 const TAG = 'Orders';
 
-const shippingAddressExample = {
-	name: 'Ayesha Rahman',
-	phone: '01712345678',
-	address: 'House 12, Road 4, Dhanmondi, Dhaka 1209',
-	deliveryNotes: 'Call before delivery'
-};
-
 const createOrderExample = {
 	source: 'direct',
 	items: [{ productId: '6650f1a2b3c4d5e6f7a8b9c0', variantId: '6650f1a2b3c4d5e6f7a8b9d1', quantity: 2 }],
-	customer: { name: 'Ayesha Rahman', phone: '01712345678', email: 'ayesha@example.com' },
-	shippingAddress: shippingAddressExample,
-	deliveryArea: 'inside-dhaka',
-	paymentMethod: PaymentMethod.Bkash,
-	customerNotes: 'Gift wrap please'
+	// exactly the four fields checkout collects
+	customer: { name: 'Ayesha Rahman', phone: '01712345678' },
+	shippingAddress: { address: 'House 12, Road 4, Dhanmondi, Dhaka 1209' },
+	deliveryArea: DeliveryArea.InsideDhaka
 };
 
 const orderListFilters = [
@@ -86,14 +79,17 @@ export const orderPaths: TPathsObject = {
 					'application/json': {
 						schema: ref('CheckoutPreviewRequest'),
 						examples: {
-							cart: { summary: 'Logged-in customer cart', value: { source: 'cart', deliveryArea: 'inside-dhaka' } },
+							cart: {
+								summary: 'Logged-in customer cart',
+								value: { source: 'cart', deliveryArea: DeliveryArea.InsideDhaka }
+							},
 							buyNow: {
 								summary: 'Buy Now / guest',
 								value: {
 									items: [
 										{ productId: '6650f1a2b3c4d5e6f7a8b9c0', variantId: '6650f1a2b3c4d5e6f7a8b9d1', quantity: 2 }
 									],
-									deliveryArea: 'outside-dhaka'
+									deliveryArea: DeliveryArea.OutsideDhaka
 								}
 							}
 						}
@@ -120,8 +116,8 @@ export const orderPaths: TPathsObject = {
 							],
 							subtotal: 1700,
 							discount: 260,
-							deliveryCharge: 60,
-							deliveryArea: 'inside-dhaka',
+							deliveryCharge: 80,
+							deliveryArea: DeliveryArea.InsideDhaka,
 							isFreeDelivery: false,
 							total: 1500
 						}
@@ -144,8 +140,21 @@ export const orderPaths: TPathsObject = {
 			tags: ['Checkout'],
 			summary: 'Place an order',
 			description:
-				'**Public or Customer.** Creates an order from the cart (`source: "cart"`), from an explicit item list (Buy Now) or as a guest without an account. Business rules: every price, discount, delivery charge and total is recalculated server side; stock is validated and reserved atomically so concurrent orders cannot oversell; product and variant snapshots are stored on the order. The order starts as `pending` with payment status `pending`, and the response contains the payment instructions for the chosen method. A cart based checkout clears the cart. Rate limited.',
+				'**Public or Customer.** Creates an order from the cart (`source: "cart"`), from an explicit item list (Buy Now) or as a guest without an account. ' +
+				'Checkout collects only name, mobile number, full address and delivery area. The order is always stored as **cash on delivery** - any `paymentMethod` sent is ignored. ' +
+				'Every price, discount, delivery charge and total is recalculated server side from the catalogue and the delivery area; an `expectedTotal` that disagrees is logged and ignored, never charged. Stock is validated and reserved atomically so concurrent orders cannot oversell, and product and variant snapshots are stored on the order. ' +
+				'The order starts as `pending` with payment status `pending`. A cart based checkout clears the cart. Send an `Idempotency-Key` header so a retry cannot create a second order. Rate limited.',
 			operationId: 'createOrder',
+			parameters: [
+				{
+					name: 'Idempotency-Key',
+					in: 'header',
+					required: false,
+					description:
+						'Send a unique value (a UUID) per checkout attempt. Retrying with the same key returns the original order with 200 instead of creating a second one. Without the header, an identical basket from the same number within 2 minutes is treated as the same order.',
+					schema: { type: 'string', example: '9f1c2f2e-6a3f-4f0e-9d63-2a7b5c8e1a44' }
+				}
+			],
 			security: [], // public endpoint
 			requestBody: {
 				required: true,
@@ -153,15 +162,14 @@ export const orderPaths: TPathsObject = {
 					'application/json': {
 						schema: ref('CreateOrderRequest'),
 						examples: {
-							guestBkash: { summary: 'Guest checkout with bKash', value: createOrderExample },
-							cartCod: {
-								summary: 'Logged-in cart checkout with cash on delivery',
+							guestMinimal: { summary: 'Guest checkout - the four collected fields', value: createOrderExample },
+							cartOutsideDhaka: {
+								summary: 'Logged-in cart checkout, outside Dhaka',
 								value: {
 									source: 'cart',
-									customer: { name: 'Ayesha Rahman', phone: '01712345678', email: 'ayesha@example.com' },
-									shippingAddress: shippingAddressExample,
-									deliveryArea: 'inside-dhaka',
-									paymentMethod: PaymentMethod.CashOnDelivery
+									customer: { name: 'Ayesha Rahman', phone: '+8801712345678' },
+									shippingAddress: { address: 'Holding 44, Ward 3, Rajshahi', deliveryNotes: 'Call before delivery' },
+									deliveryArea: DeliveryArea.OutsideDhaka
 								}
 							}
 						}
@@ -170,6 +178,9 @@ export const orderPaths: TPathsObject = {
 			},
 			responses: {
 				'201': successResponse('Order placed successfully!', ref('CreateOrderResult')),
+				'200': successResponse('This order was already placed.', ref('CreateOrderResult'), {
+					message: 'This order was already placed.'
+				}),
 				'400': {
 					description: 'Validation failed, the cart is empty or a variant selection is missing.',
 					content: { 'application/json': { schema: ref('ErrorResponse') } }

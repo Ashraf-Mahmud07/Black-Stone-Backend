@@ -24,6 +24,7 @@ const seoSchema = z.object({
 const variantSchema = z.object({
 	sku: z.string({ required_error: 'Variant SKU is required!' }).min(2, 'Variant SKU is too short!'),
 	color: z.string().optional(),
+	colorBn: z.string().optional(),
 	size: z.string().optional(),
 	design: z.string().optional(),
 	attributes: z.record(z.string()).optional(),
@@ -31,6 +32,7 @@ const variantSchema = z.object({
 	discountPrice: z.number().nonnegative('Discount price cannot be negative!').optional(),
 	stock: z.number().int('Stock must be a whole number!').nonnegative('Stock cannot be negative!'),
 	image: imageSchema.optional(),
+	images: z.array(imageSchema).max(6, 'A variant can have at most 6 images!').optional(),
 	isActive: z.boolean().optional()
 });
 
@@ -99,6 +101,12 @@ const removeImageValidation = z.object({
 	})
 });
 
+const removeVariantImageValidation = z.object({
+	body: z.object({
+		url: z.string({ required_error: 'Image url is required!' }).url('Invalid image url!')
+	})
+});
+
 const removeVideoValidation = z.object({
 	body: z.object({
 		url: z.string({ required_error: 'Video url is required!' }).url('Invalid video url!')
@@ -112,6 +120,7 @@ const ProductValidations = {
 	createVariantValidation,
 	updateVariantValidation,
 	removeImageValidation,
+	removeVariantImageValidation,
 	removeVideoValidation
 };
 

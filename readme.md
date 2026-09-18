@@ -86,6 +86,26 @@ src/
 - Orders keep product and variant snapshots, so historical orders survive catalog changes.
 - Order status and payment status are independent state machines.
 
+### Checkout rules
+
+- **Cash on delivery only.** `paymentMethod` is ignored on create and every order is stored as
+  `cod`. The wallet values stay in the enum and `ONLINE_PAYMENTS_ENABLED=true` re-opens the
+  bKash/Nagad submission flow without a migration.
+- **Two delivery areas**: `INSIDE_DHAKA` and `OUTSIDE_DHAKA`, required at checkout. Both rates live
+  in the `DeliverySetting` document - readable at `GET /api/delivery/settings`, editable by an admin
+  at `PATCH /api/delivery/settings`, seeded from `DELIVERY_CHARGE_INSIDE_DHAKA` /
+  `DELIVERY_CHARGE_OUTSIDE_DHAKA`. The charge is persisted on each order, so changing a rate never
+  rewrites history.
+- **Four collected fields**: name, mobile number, full address, delivery area. Phone numbers are
+  normalised to `01XXXXXXXXX` on the way in.
+- **Duplicate protection**: an `Idempotency-Key` header, or an identical basket from the same number
+  within two minutes, returns the original order with 200. A unique index makes the concurrent case
+  safe as well.
+- Validation errors carry a stable `code` (`validation.customer.phone.invalid`) for Bangla copy.
+
+Run `pnpm migrate:delivery-areas` (add `--dry-run` first) once after deploying to canonicalise
+existing orders and delivery settings.
+
 ### Storage (Cloudinary)
 
 Every product image, product video and payment screenshot is uploaded to Cloudinary. Nothing is

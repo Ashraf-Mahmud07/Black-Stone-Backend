@@ -409,6 +409,66 @@ export const productPaths: TPathsObject = {
 		}
 	},
 
+	'/api/products/{id}/variants/{variantId}/images': {
+		post: {
+			tags: [TAG],
+			summary: 'Upload images for one colour variant',
+			description:
+				'**Admin.** `multipart/form-data` upload of up to 6 images for a single variant, through the same Cloudinary storage the product gallery uses. The first image uploaded to a variant that has none becomes its `image` (the swatch the storefront shows when that colour is selected).',
+			operationId: 'addVariantImages',
+			security: bearerAuth,
+			parameters: [parameterRef('IdParam'), parameterRef('VariantIdParam')],
+			requestBody: {
+				required: true,
+				content: {
+					'multipart/form-data': {
+						schema: ref('VariantImagesUpload'),
+						encoding: { images: { contentType: 'image/jpeg, image/png, image/webp' } }
+					}
+				}
+			},
+			responses: {
+				'200': successResponse('Variant images uploaded successfully!', ref('Product')),
+				'400': {
+					description: 'No file supplied, unsupported file type, file too large, or the 6 image limit reached.',
+					content: { 'application/json': { schema: ref('ErrorResponse') } }
+				},
+				'401': responseRef('Unauthorized'),
+				'403': responseRef('Forbidden'),
+				'404': responseRef('NotFound'),
+				'500': responseRef('ServerError')
+			}
+		},
+		delete: {
+			tags: [TAG],
+			summary: 'Remove a variant image',
+			description:
+				'**Admin.** Removes the image from the variant and deletes the file from storage. Removing the primary image promotes the next one; a variant left with no image falls back to the product image through `displayImage`.',
+			operationId: 'removeVariantImage',
+			security: bearerAuth,
+			parameters: [parameterRef('IdParam'), parameterRef('VariantIdParam')],
+			requestBody: {
+				required: true,
+				content: {
+					'application/json': {
+						schema: ref('RemoveProductImageRequest'),
+						example: {
+							url: 'https://res.cloudinary.com/demo/image/upload/v1712345678/black-stone/products/hijab-black.webp'
+						}
+					}
+				}
+			},
+			responses: {
+				'200': successResponse('Variant image removed successfully!', ref('Product')),
+				'400': responseRef('BadRequest'),
+				'401': responseRef('Unauthorized'),
+				'403': responseRef('Forbidden'),
+				'404': responseRef('NotFound'),
+				'500': responseRef('ServerError')
+			}
+		}
+	},
+
 	'/api/products/{id}/videos': {
 		post: {
 			tags: [TAG],

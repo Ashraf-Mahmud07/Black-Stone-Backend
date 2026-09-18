@@ -2,6 +2,7 @@
 import config from '../config';
 import { UserRole } from '../interface/auth';
 import CategoryRepository from '../modules/Category/category.repository';
+import { DeliveryArea } from '../modules/Delivery/delivery.interfaces';
 import DeliveryRepository from '../modules/Delivery/delivery.repository';
 import { ProductStatus, TVariantPayload } from '../modules/Product/product.interfaces';
 import ProductRepository from '../modules/Product/product.repository';
@@ -191,8 +192,20 @@ const seedDevData = async (): Promise<void> => {
 			freeDeliveryEnabled: config.commerce.free_delivery_enabled,
 			freeDeliveryThreshold: config.commerce.free_delivery_threshold,
 			areas: [
-				{ key: 'inside-dhaka', name: 'Inside Dhaka', charge: 60, estimatedDays: '1-2 days', isActive: true },
-				{ key: 'outside-dhaka', name: 'Outside Dhaka', charge: 130, estimatedDays: '3-5 days', isActive: true }
+				{
+					key: DeliveryArea.InsideDhaka,
+					name: 'Inside Dhaka',
+					charge: config.commerce.delivery_charge_inside_dhaka,
+					estimatedDays: '1-2 days',
+					isActive: true
+				},
+				{
+					key: DeliveryArea.OutsideDhaka,
+					name: 'Outside Dhaka',
+					charge: config.commerce.delivery_charge_outside_dhaka,
+					estimatedDays: '3-5 days',
+					isActive: true
+				}
 			],
 			note: 'Delivery charges are collected with the order total.'
 		});

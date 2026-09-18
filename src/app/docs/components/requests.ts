@@ -1,4 +1,5 @@
 import { UserRole } from '../../interface/auth';
+import { DeliveryArea } from '../../modules/Delivery/delivery.interfaces';
 import { OrderStatus, PaymentMethod } from '../../modules/Order/order.interfaces';
 import { ProductStatus } from '../../modules/Product/product.interfaces';
 import { ReviewStatus } from '../../modules/Review/review.interfaces';
@@ -226,6 +227,19 @@ const ProductImagesUpload: TSchemaObject = {
 // cart
 // ---------------------------------------------------------------------------
 
+const VariantImagesUpload: TSchemaObject = {
+	type: 'object',
+	properties: {
+		images: {
+			type: 'array',
+			maxItems: 6,
+			items: { type: 'string', format: 'binary' },
+			description: 'JPEG, PNG or WEBP. Maximum 5MB per file, up to 6 images per variant.'
+		}
+	},
+	required: ['images']
+};
+
 const ProductVideosUpload: TSchemaObject = {
 	type: 'object',
 	properties: {
@@ -300,13 +314,19 @@ const CheckoutPreviewRequest: TSchemaObject = {
 	properties: {
 		source: { type: 'string', enum: ['cart', 'direct'], example: 'direct' },
 		items: { type: 'array', minItems: 1, items: ref('CheckoutItemInput') },
-		deliveryArea: { type: 'string', example: 'inside-dhaka', description: 'Key from GET /api/delivery/settings.' }
+		deliveryArea: {
+			type: 'string',
+			enum: enumValues(DeliveryArea),
+			example: DeliveryArea.InsideDhaka,
+			description: 'Optional here - the preview falls back to the default charge until an area is chosen.'
+		}
 	}
 };
 
 const CreateOrderRequest: TSchemaObject = {
 	type: 'object',
-	description: 'Prices, discounts, delivery charge and totals are always recalculated server side.',
+	description:
+		'Checkout collects exactly four things: name, mobile number, full address and delivery area. Prices, discounts, delivery charge and totals are always recalculated server side, and the order is always stored as cash on delivery. Send an `Idempotency-Key` header to make a retry safe.',
 	properties: {
 		source: { type: 'string', enum: ['cart', 'direct'], example: 'cart' },
 		items: {
@@ -325,12 +345,53 @@ const CreateOrderRequest: TSchemaObject = {
 			},
 			required: ['name', 'phone']
 		},
-		shippingAddress: ref('ShippingAddress'),
-		deliveryArea: { type: 'string', example: 'inside-dhaka' },
-		paymentMethod: { type: 'string', enum: enumValues(PaymentMethod), example: PaymentMethod.Bkash },
-		customerNotes: { type: 'string', maxLength: 500, example: 'Gift wrap please' }
+		shippingAddress: ref('ShippingAddressInput'),
+		deliveryArea: {
+			type: 'string',
+			enum: enumValues(DeliveryArea),
+			example: DeliveryArea.InsideDhaka,
+			description: 'Required. Drives the delivery charge; any other value is rejected with 400.'
+		},
+		paymentMethod: {
+			type: 'string',
+			enum: enumValues(PaymentMethod),
+			description:
+				'Accepted for backwards compatibility and then ignored - every order is stored as `cod`. Kept so online payment can be re-enabled without a migration.',
+			example: PaymentMethod.CashOnDelivery
+		},
+		expectedTotal: {
+			...money,
+			description:
+				'Optional. The total the client displayed. It is compared against the server total and a mismatch is logged, never charged - the order still succeeds at the server price.',
+			example: 1500
+		},
+		customerNotes: {
+			type: 'string',
+			maxLength: 500,
+			description: 'Deprecated: checkout no longer collects notes. Still stored when sent.',
+			example: 'Gift wrap please'
+		}
 	},
-	required: ['customer', 'shippingAddress', 'paymentMethod']
+	required: ['customer', 'shippingAddress', 'deliveryArea']
+};
+
+const ShippingAddressInput: TSchemaObject = {
+	type: 'object',
+	description:
+		'Only `address` is required. `name` and `phone` are copied from `customer` when omitted, so checkout never collects them twice.',
+	properties: {
+		name: { type: 'string', minLength: 2, example: 'Ayesha Rahman' },
+		phone,
+		email: { type: 'string', format: 'email', example: 'ayesha@example.com' },
+		address: {
+			type: 'string',
+			minLength: 5,
+			description: 'Full delivery address as a single line.',
+			example: 'House 12, Road 4, Dhanmondi, Dhaka 1209'
+		},
+		deliveryNotes: { type: 'string', maxLength: 500, example: 'Call before delivery' }
+	},
+	required: ['address']
 };
 
 const TrackOrderRequest: TSchemaObject = {
@@ -521,6 +582,7 @@ export const requestSchemas: Record<string, TSchemaObject> = {
 	RemoveProductImageRequest,
 	ProductImagesUpload,
 	ProductVideosUpload,
+	VariantImagesUpload,
 	RemoveProductVideoRequest,
 	AddCartItemRequest,
 	UpdateCartItemRequest,
@@ -528,6 +590,7 @@ export const requestSchemas: Record<string, TSchemaObject> = {
 	CheckoutItemInput,
 	CheckoutPreviewRequest,
 	CreateOrderRequest,
+	ShippingAddressInput,
 	TrackOrderRequest,
 	UpdateOrderStatusRequest,
 	CancelOrderRequest,

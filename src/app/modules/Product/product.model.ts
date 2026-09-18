@@ -7,6 +7,7 @@ export type TProductVariantDocument = {
 	_id?: Types.ObjectId;
 	sku: string;
 	color?: string;
+	colorBn?: string;
 	size?: string;
 	design?: string;
 	attributes?: Record<string, string>;
@@ -14,6 +15,7 @@ export type TProductVariantDocument = {
 	discountPrice?: number;
 	stock: number;
 	image?: TImage;
+	images: TImage[];
 	isActive: boolean;
 };
 
@@ -67,6 +69,7 @@ const VariantSchema = new Schema<TProductVariantDocument>({
 		trim: true
 	},
 	color: { type: String, trim: true },
+	colorBn: { type: String, trim: true },
 	size: { type: String, trim: true },
 	design: { type: String, trim: true },
 	attributes: { type: Map, of: String },
@@ -79,6 +82,7 @@ const VariantSchema = new Schema<TProductVariantDocument>({
 		default: 0
 	},
 	image: ImageSchema,
+	images: { type: [ImageSchema], default: [] },
 	isActive: { type: Boolean, default: true }
 });
 

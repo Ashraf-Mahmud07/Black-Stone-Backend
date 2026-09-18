@@ -18,6 +18,7 @@ import {
 import ProductRepository from './product.repository';
 
 const MAX_PRODUCT_IMAGES = 12;
+const MAX_VARIANT_IMAGES = 6;
 const MAX_PRODUCT_VIDEOS = 12;
 
 const buildUniqueSlug = async (source: string, currentId?: string): Promise<string> => {
@@ -305,6 +306,76 @@ const removeImage = async (id: string, imageUrl: string): Promise<TProduct> => {
 };
 
 // ---------------------------------------------------------------------------
+// variant (per colour) images
+// ---------------------------------------------------------------------------
+
+const loadVariant = async (id: string, variantId: string) => {
+	const product = await ProductRepository.findById(id);
+	if (!product) {
+		throw new AppError(httpStatus.NOT_FOUND, 'Product not found!');
+	}
+	const variant = product.variants.find((item) => item.id === variantId);
+	if (!variant) {
+		throw new AppError(httpStatus.NOT_FOUND, 'Variant not found!');
+	}
+	return { product, variant };
+};
+
+/**
+ * Uploads images for one colour variant through the same storage provider the product
+ * gallery uses. The first image uploaded to a variant without one becomes its primary.
+ */
+const addVariantImages = async (id: string, variantId: string, files: TUploadedFile[]): Promise<TProduct> => {
+	const { variant } = await loadVariant(id, variantId);
+
+	if (!files.length) {
+		throw new AppError(httpStatus.BAD_REQUEST, 'At least one image file is required!');
+	}
+	if (variant.images.length + files.length > MAX_VARIANT_IMAGES) {
+		throw new AppError(httpStatus.BAD_REQUEST, `A variant can have at most ${MAX_VARIANT_IMAGES} images!`);
+	}
+
+	const stored = await Promise.all(
+		files.map((file) => storage.save(file, { folder: StorageFolders.products, resourceType: 'image' }))
+	);
+	const uploaded: TImage[] = stored.map((file) => ({
+		url: file.url,
+		key: file.key,
+		resourceType: 'image',
+		width: file.width,
+		height: file.height
+	}));
+
+	const images = [...variant.images, ...uploaded];
+	const updated = await ProductRepository.setVariantMedia(id, variantId, {
+		image: variant.image ?? uploaded[0],
+		images
+	});
+	return updated as TProduct;
+};
+
+const removeVariantImage = async (id: string, variantId: string, imageUrl: string): Promise<TProduct> => {
+	const { variant } = await loadVariant(id, variantId);
+
+	const target =
+		variant.images.find((item) => item.url === imageUrl) ??
+		(variant.image?.url === imageUrl ? variant.image : undefined);
+	if (!target) {
+		throw new AppError(httpStatus.NOT_FOUND, 'Image not found on this variant!');
+	}
+
+	const images = variant.images.filter((item) => item.url !== imageUrl);
+	// when the primary is removed, promote the next image - or leave the variant with none
+	const image = variant.image?.url === imageUrl ? images[0] : variant.image;
+
+	const updated = await ProductRepository.setVariantMedia(id, variantId, { image, images });
+	if (target.key) {
+		await storage.remove(target.key).catch(() => undefined);
+	}
+	return updated as TProduct;
+};
+
+// ---------------------------------------------------------------------------
 // videos
 // ---------------------------------------------------------------------------
 
@@ -425,6 +496,8 @@ const ProductServices = {
 	removeVariant,
 	addImages,
 	removeImage,
+	addVariantImages,
+	removeVariantImage,
 	addVideos,
 	removeVideo,
 	resolvePurchasableLine

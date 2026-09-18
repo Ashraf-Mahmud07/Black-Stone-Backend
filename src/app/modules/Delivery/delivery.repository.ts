@@ -1,5 +1,5 @@
 import config from '../../config';
-import { TDeliverySetting, TUpdateDeliverySettingPayload } from './delivery.interfaces';
+import { DeliveryArea, TDeliverySetting, TUpdateDeliverySettingPayload } from './delivery.interfaces';
 import { DeliverySetting, TDeliverySettingDocument } from './delivery.model';
 
 const SINGLETON_KEY = 'default';
@@ -9,7 +9,22 @@ const defaults: TDeliverySetting = {
 	defaultCharge: config.commerce.default_delivery_charge,
 	freeDeliveryEnabled: config.commerce.free_delivery_enabled,
 	freeDeliveryThreshold: config.commerce.free_delivery_threshold,
-	areas: []
+	areas: [
+		{
+			key: DeliveryArea.InsideDhaka,
+			name: 'Inside Dhaka',
+			charge: config.commerce.delivery_charge_inside_dhaka,
+			estimatedDays: '1-2 days',
+			isActive: true
+		},
+		{
+			key: DeliveryArea.OutsideDhaka,
+			name: 'Outside Dhaka',
+			charge: config.commerce.delivery_charge_outside_dhaka,
+			estimatedDays: '3-5 days',
+			isActive: true
+		}
+	]
 };
 
 const toSetting = (doc: TDeliverySettingDocument): TDeliverySetting => ({

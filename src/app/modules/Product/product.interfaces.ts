@@ -21,7 +21,10 @@ export type TSeo = {
 export type TProductVariant = {
 	id: string;
 	sku: string;
+	/** Colour name in English, e.g. `Black`. */
 	color?: string;
+	/** Colour name in Bangla, e.g. `কালো`. Optional - falls back to `color` on the client. */
+	colorBn?: string;
 	size?: string;
 	design?: string;
 	/** Free-form extra attributes (fabric, work type, ...). */
@@ -30,7 +33,17 @@ export type TProductVariant = {
 	price?: number;
 	discountPrice?: number;
 	stock: number;
+	/** Primary image for this colour. Absent when the variant has no image of its own. */
 	image?: TImage;
+	/** Optional extra images for this colour, shown as a gallery on the PDP. */
+	images: TImage[];
+	/**
+	 * What the storefront should render for this variant: its own image when it has one,
+	 * otherwise the product's primary image. Derived - never stored.
+	 */
+	displayImage?: TImage;
+	/** False when `displayImage` came from the product rather than the variant. */
+	hasOwnImage: boolean;
 	isActive: boolean;
 };
 
@@ -63,7 +76,10 @@ export type TProduct = {
 	updatedAt?: Date;
 };
 
-export type TVariantPayload = Omit<TProductVariant, 'id' | 'isActive'> & { isActive?: boolean };
+export type TVariantPayload = Omit<TProductVariant, 'id' | 'isActive' | 'images' | 'displayImage' | 'hasOwnImage'> & {
+	isActive?: boolean;
+	images?: TImage[];
+};
 
 export type TCreateProductPayload = {
 	name: string;

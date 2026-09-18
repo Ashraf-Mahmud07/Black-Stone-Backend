@@ -131,6 +131,27 @@ const removeImage: RequestHandler = catchAsync(async (req, res) => {
 	});
 });
 
+const addVariantImages: RequestHandler = catchAsync(async (req, res) => {
+	const files = (req.files ?? []) as TUploadedFile[];
+	const result = await ProductServices.addVariantImages(req.params.id, req.params.variantId, files);
+	sendResponse(res, {
+		statusCode: httpStatus.OK,
+		success: true,
+		message: 'Variant images uploaded successfully!',
+		data: result
+	});
+});
+
+const removeVariantImage: RequestHandler = catchAsync(async (req, res) => {
+	const result = await ProductServices.removeVariantImage(req.params.id, req.params.variantId, req.body.url);
+	sendResponse(res, {
+		statusCode: httpStatus.OK,
+		success: true,
+		message: 'Variant image removed successfully!',
+		data: result
+	});
+});
+
 const addVideos: RequestHandler = catchAsync(async (req, res) => {
 	const files = (req.files ?? []) as TUploadedFile[];
 	const result = await ProductServices.addVideos(req.params.id, files);
@@ -165,6 +186,8 @@ const ProductControllers = {
 	removeVariant,
 	addImages,
 	removeImage,
+	addVariantImages,
+	removeVariantImage,
 	addVideos,
 	removeVideo
 };

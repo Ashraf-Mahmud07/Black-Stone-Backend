@@ -21,8 +21,8 @@ export const deliveryPaths: TPathsObject = {
 							freeDeliveryEnabled: false,
 							freeDeliveryThreshold: 3000,
 							areas: [
-								{ key: 'inside-dhaka', name: 'Inside Dhaka', charge: 60, estimatedDays: '1-2 days', isActive: true },
-								{ key: 'outside-dhaka', name: 'Outside Dhaka', charge: 130, estimatedDays: '3-5 days', isActive: true }
+								{ key: 'INSIDE_DHAKA', name: 'Inside Dhaka', charge: 80, estimatedDays: '1-2 days', isActive: true },
+								{ key: 'OUTSIDE_DHAKA', name: 'Outside Dhaka', charge: 150, estimatedDays: '3-5 days', isActive: true }
 							],
 							note: 'Delivery charges are collected with the order total.'
 						}
@@ -48,8 +48,8 @@ export const deliveryPaths: TPathsObject = {
 							freeDeliveryEnabled: true,
 							freeDeliveryThreshold: 3000,
 							areas: [
-								{ key: 'inside-dhaka', name: 'Inside Dhaka', charge: 60, estimatedDays: '1-2 days', isActive: true },
-								{ key: 'outside-dhaka', name: 'Outside Dhaka', charge: 130, estimatedDays: '3-5 days', isActive: true }
+								{ key: 'INSIDE_DHAKA', name: 'Inside Dhaka', charge: 80, estimatedDays: '1-2 days', isActive: true },
+								{ key: 'OUTSIDE_DHAKA', name: 'Outside Dhaka', charge: 150, estimatedDays: '3-5 days', isActive: true }
 							]
 						}
 					}

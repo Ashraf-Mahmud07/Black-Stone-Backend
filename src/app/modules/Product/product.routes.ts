@@ -41,6 +41,20 @@ router.patch(
 
 router.delete('/:id/variants/:variantId', AuthGuard(UserRole.Admin), ProductControllers.removeVariant);
 
+router.post(
+	'/:id/variants/:variantId/images',
+	AuthGuard(UserRole.Admin),
+	uploadMultipleImages('images', 6),
+	ProductControllers.addVariantImages
+);
+
+router.delete(
+	'/:id/variants/:variantId/images',
+	AuthGuard(UserRole.Admin),
+	validateRequest(ProductValidations.removeVariantImageValidation),
+	ProductControllers.removeVariantImage
+);
+
 router.post('/:id/images', AuthGuard(UserRole.Admin), uploadMultipleImages('images', 12), ProductControllers.addImages);
 
 router.delete(

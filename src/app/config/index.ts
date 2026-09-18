@@ -52,6 +52,8 @@ export default {
 
 	// manual payment (bKash / Nagad) configuration
 	payment: {
+		// the store is cash on delivery only; flip this to re-open the wallet submission flow
+		online_payments_enabled: toBoolean(process.env.ONLINE_PAYMENTS_ENABLED, false),
 		bkash_merchant_number: process.env.BKASH_MERCHANT_NUMBER || '',
 		bkash_account_type: process.env.BKASH_ACCOUNT_TYPE || 'personal',
 		nagad_merchant_number: process.env.NAGAD_MERCHANT_NUMBER || '',
@@ -60,7 +62,9 @@ export default {
 
 	// commerce defaults (used when no DeliverySetting document exists yet)
 	commerce: {
-		default_delivery_charge: toNumber(process.env.DEFAULT_DELIVERY_CHARGE, 60),
+		default_delivery_charge: toNumber(process.env.DEFAULT_DELIVERY_CHARGE, 80),
+		delivery_charge_inside_dhaka: toNumber(process.env.DELIVERY_CHARGE_INSIDE_DHAKA, 80),
+		delivery_charge_outside_dhaka: toNumber(process.env.DELIVERY_CHARGE_OUTSIDE_DHAKA, 150),
 		free_delivery_enabled: toBoolean(process.env.FREE_DELIVERY_ENABLED, false),
 		free_delivery_threshold: toNumber(process.env.FREE_DELIVERY_THRESHOLD, 3000),
 		low_stock_threshold: toNumber(process.env.LOW_STOCK_THRESHOLD, 5)

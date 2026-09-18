@@ -31,6 +31,8 @@ export type TOrderDocument = {
 	status: OrderStatus;
 	statusHistory: TOrderStatusHistoryEntry[];
 	pricingHistory: TPricingHistoryEntry[];
+	idempotencyKey?: string;
+	duplicateFingerprint?: string;
 	customerNotes?: string;
 	adminNotes?: string;
 	stockRestored: boolean;
@@ -170,6 +172,9 @@ const orderSchema = new Schema<TOrderDocument>(
 		},
 		statusHistory: { type: [StatusHistorySchema], default: [] },
 		pricingHistory: { type: [PricingHistorySchema], default: [] },
+		// the unique index is what actually makes a double submission impossible
+		idempotencyKey: { type: String },
+		duplicateFingerprint: { type: String },
 		customerNotes: { type: String },
 		adminNotes: { type: String },
 		stockRestored: { type: Boolean, default: false },
@@ -181,6 +186,8 @@ const orderSchema = new Schema<TOrderDocument>(
 	{ timestamps: true }
 );
 
+orderSchema.index({ idempotencyKey: 1 }, { unique: true, sparse: true });
+orderSchema.index({ duplicateFingerprint: 1, createdAt: -1 });
 orderSchema.index({ createdAt: -1 });
 orderSchema.index({ 'customer.phone': 1 });
 orderSchema.index({ status: 1, createdAt: -1 });

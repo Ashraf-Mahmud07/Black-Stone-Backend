@@ -1,13 +1,16 @@
+import { createHash } from 'crypto';
 import httpStatus from 'http-status';
 import AppError from '../../errors/AppError';
 import { TAuthUser, UserRole } from '../../interface/auth';
 import { TPaginatedResult } from '../../interface/common';
 import { calculatePagination } from '../../utils/pagination';
+import logger from '../../utils/logger';
+import { normalizeBdPhone } from '../../utils/phone';
 import { calculateAdjustedTotals, calculateItemsPayable, calculateOrderTotals, roundMoney } from '../../utils/pricing';
 import { buildVariantLabel } from '../Cart/cart.services';
 import CartRepository from '../Cart/cart.repository';
 import DeliveryRepository from '../Delivery/delivery.repository';
-import { resolveDeliveryCharge } from '../Delivery/delivery.utils';
+import { normalizeDeliveryArea, resolveDeliveryCharge } from '../Delivery/delivery.utils';
 import PaymentRepository from '../Payment/payment.repository';
 import { TResolvedLine, TStockLine } from '../Product/product.interfaces';
 import ProductRepository from '../Product/product.repository';
@@ -170,12 +173,70 @@ const toStockLines = (lines: TResolvedLine[]): TStockLine[] =>
 export type TCreateOrderResult = {
 	order: TOrder;
 	paymentInstructions: TPaymentInstructions;
+	/** Set when this request was a duplicate and an existing order is being returned. */
+	duplicateOf?: string;
+};
+
+/** A unique index violation on the idempotency key means a concurrent request won the race. */
+const isDuplicateIdempotencyKeyError = (error: unknown): boolean => {
+	const candidate = error as { code?: number; keyPattern?: Record<string, unknown> } | null;
+	return candidate?.code === 11000 && Boolean(candidate.keyPattern?.idempotencyKey);
+};
+
+/** Window in which an identical basket from the same phone counts as a double submission. */
+const DUPLICATE_WINDOW_MS = 2 * 60 * 1000;
+
+/** Stable hash of who is ordering, where to, and exactly what - used to spot double clicks. */
+const buildDuplicateFingerprint = (phone: string, deliveryArea: string, items: TCheckoutItemInput[]): string => {
+	const basket = [...items]
+		.map((item) => `${item.productId}:${item.variantId ?? ''}:${item.quantity}`)
+		.sort()
+		.join('|');
+	return createHash('sha256').update(`${phone}|${deliveryArea}|${basket}`).digest('hex');
 };
 
 const createOrder = async (payload: TCheckoutPayload, authUser?: TAuthUser): Promise<TCreateOrderResult> => {
 	const { items, fromCart } = await collectItems(payload, authUser);
+
+	// the client may send any spelling; everything downstream uses the canonical forms
+	const customerPhone = normalizeBdPhone(payload.customer.phone) ?? payload.customer.phone;
+	const deliveryArea = normalizeDeliveryArea(payload.deliveryArea);
+	if (!deliveryArea) {
+		throw new AppError(httpStatus.BAD_REQUEST, 'Delivery area must be INSIDE_DHAKA or OUTSIDE_DHAKA!', {
+			path: 'deliveryArea',
+			code: 'validation.deliveryArea.invalid'
+		});
+	}
+
+	// ---- duplicate protection -------------------------------------------------
+	const fingerprint = buildDuplicateFingerprint(customerPhone, deliveryArea, items);
+	// without a client key, the window itself becomes the key, so a double click collides
+	const idempotencyKey =
+		payload.idempotencyKey?.trim() || `auto:${fingerprint}:${Math.floor(Date.now() / DUPLICATE_WINDOW_MS)}`;
+
+	const existing =
+		(await OrderRepository.findByIdempotencyKey(idempotencyKey)) ??
+		(await OrderRepository.findRecentDuplicate(fingerprint, new Date(Date.now() - DUPLICATE_WINDOW_MS)));
+	if (existing) {
+		return {
+			order: existing,
+			paymentInstructions: buildPaymentInstructions(existing.paymentMethod, existing.total),
+			duplicateOf: existing.orderNumber
+		};
+	}
+
 	const lines = await resolveLines(items);
-	const summary = await buildSummary(lines, payload.deliveryArea);
+	const summary = await buildSummary(lines, deliveryArea);
+
+	// the client never decides money - a mismatch is recorded and then ignored
+	if (payload.expectedTotal !== undefined && roundMoney(payload.expectedTotal) !== summary.total) {
+		logger.warn('checkout total mismatch - using the server total', {
+			phone: customerPhone,
+			deliveryArea,
+			clientTotal: payload.expectedTotal,
+			serverTotal: summary.total
+		});
+	}
 
 	// reserve stock first: the conditional decrements make concurrent overselling impossible
 	const reservation = await ProductRepository.reserveStock(toStockLines(lines));
@@ -187,10 +248,13 @@ const createOrder = async (payload: TCheckoutPayload, authUser?: TAuthUser): Pro
 		);
 		throw new AppError(
 			httpStatus.CONFLICT,
-			`"${failed?.product.name ?? 'One of the products'}" just went out of stock. Please review your order.`
+			`"${failed?.product.name ?? 'One of the products'}" just went out of stock. Please review your order.`,
+			{ code: 'order.outOfStock' }
 		);
 	}
 
+	// cash on delivery only: whatever the client sent is discarded
+	const paymentMethod = PaymentMethod.CashOnDelivery;
 	const paymentStatus = PaymentStatus.Pending;
 
 	try {
@@ -199,32 +263,39 @@ const createOrder = async (payload: TCheckoutPayload, authUser?: TAuthUser): Pro
 			customer: {
 				userId: authUser?.role === UserRole.Customer ? authUser.id : undefined,
 				name: payload.customer.name,
-				phone: payload.customer.phone,
+				phone: customerPhone,
 				email: payload.customer.email,
 				isGuest: !authUser
 			},
-			shippingAddress: payload.shippingAddress,
+			// checkout only collects one name and one number - reuse them for the recipient
+			shippingAddress: {
+				...payload.shippingAddress,
+				name: payload.shippingAddress.name?.trim() || payload.customer.name,
+				phone: normalizeBdPhone(payload.shippingAddress.phone) ?? customerPhone
+			},
 			items: toOrderItems(lines),
 			subtotal: summary.subtotal,
 			discount: summary.discount,
 			manualDiscount: 0,
 			deliveryCharge: summary.deliveryCharge,
 			deliveryChargeOverridden: false,
-			deliveryArea: summary.deliveryArea,
+			deliveryArea: summary.deliveryArea ?? deliveryArea,
 			total: summary.total,
-			paymentMethod: payload.paymentMethod,
+			paymentMethod,
 			paymentStatus,
 			status: OrderStatus.Pending,
 			statusHistory: [{ status: OrderStatus.Pending, at: new Date(), note: 'Order placed' }],
 			pricingHistory: [],
 			customerNotes: payload.customerNotes,
-			stockRestored: false
+			stockRestored: false,
+			idempotencyKey,
+			duplicateFingerprint: fingerprint
 		});
 
 		const payment = await PaymentRepository.create({
 			orderId: order.id,
 			orderNumber: order.orderNumber,
-			method: payload.paymentMethod,
+			method: paymentMethod,
 			amount: order.total,
 			status: paymentStatus
 		});
@@ -236,11 +307,23 @@ const createOrder = async (payload: TCheckoutPayload, authUser?: TAuthUser): Pro
 
 		return {
 			order: { ...order, paymentId: payment.id },
-			paymentInstructions: buildPaymentInstructions(payload.paymentMethod, order.total)
+			paymentInstructions: buildPaymentInstructions(paymentMethod, order.total)
 		};
 	} catch (error) {
 		// never keep stock reserved for an order that was not created
 		await ProductRepository.releaseStock(toStockLines(lines));
+
+		// a concurrent identical request won the race - hand back the order it created
+		if (isDuplicateIdempotencyKeyError(error)) {
+			const winner = await OrderRepository.findByIdempotencyKey(idempotencyKey);
+			if (winner) {
+				return {
+					order: winner,
+					paymentInstructions: buildPaymentInstructions(winner.paymentMethod, winner.total),
+					duplicateOf: winner.orderNumber
+				};
+			}
+		}
 		throw error;
 	}
 };
@@ -288,8 +371,15 @@ const getOrderById = async (id: string, authUser: TAuthUser): Promise<TOrder> =>
 /** Guest order tracking - the phone number acts as the shared secret. */
 const trackOrder = async (orderNumber: string, phone: string): Promise<TOrder> => {
 	const order = await OrderRepository.findByOrderNumber(orderNumber);
-	if (!order || order.customer.phone.replace(/\s/g, '') !== phone.replace(/\s/g, '')) {
-		throw new AppError(httpStatus.NOT_FOUND, 'No order found with this order number and phone number!');
+
+	// both sides are normalised, so `+8801712345678` matches a stored `01712345678`
+	const suppliedPhone = normalizeBdPhone(phone) ?? phone.replace(/\s/g, '');
+	const storedPhone = normalizeBdPhone(order?.customer.phone) ?? order?.customer.phone.replace(/\s/g, '');
+
+	if (!order || storedPhone !== suppliedPhone) {
+		throw new AppError(httpStatus.NOT_FOUND, 'No order found with this order number and phone number!', {
+			code: 'order.notFound'
+		});
 	}
 	return order;
 };

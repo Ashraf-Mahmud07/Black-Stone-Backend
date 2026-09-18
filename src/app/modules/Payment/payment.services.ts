@@ -1,8 +1,10 @@
 import httpStatus from 'http-status';
+import config from '../../config';
 import AppError from '../../errors/AppError';
 import { TAuthUser, UserRole } from '../../interface/auth';
 import { TPaginatedResult } from '../../interface/common';
 import { calculatePagination } from '../../utils/pagination';
+import { normalizeBdPhone } from '../../utils/phone';
 import { storage, StorageFolders, TUploadedFile } from '../../utils/storage';
 import { OrderStatus, PaymentMethod, PaymentStatus, TOrder } from '../Order/order.interfaces';
 import OrderRepository from '../Order/order.repository';
@@ -54,7 +56,8 @@ const assertOrderAccess = (order: TOrder, authUser?: TAuthUser, phone?: string):
 		if (authUser && order.userId === authUser.id) return;
 		throw new AppError(httpStatus.FORBIDDEN, 'Access denied!');
 	}
-	if (phone && order.customer.phone.replace(/\s/g, '') === phone.replace(/\s/g, '')) return;
+	// normalised on both sides, so `+8801712345678` matches a stored `01712345678`
+	if (phone && normalizeBdPhone(order.customer.phone) === normalizeBdPhone(phone)) return;
 	throw new AppError(httpStatus.FORBIDDEN, 'Please provide the phone number used to place this order!');
 };
 
@@ -82,6 +85,13 @@ const submitPayment = async (
 	file: TUploadedFile | undefined,
 	authUser?: TAuthUser
 ): Promise<TPaymentView> => {
+	if (!config.payment.online_payments_enabled) {
+		// cash on delivery only: nothing may submit a wallet transaction
+		throw new AppError(httpStatus.GONE, 'Online payment is disabled - this store is cash on delivery only.', {
+			code: 'payment.onlineDisabled'
+		});
+	}
+
 	const order = await loadOrderOrThrow(orderId);
 	assertOrderAccess(order, authUser, payload.phone);
 

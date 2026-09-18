@@ -1,11 +1,32 @@
 import { roundMoney } from '../../utils/pricing';
-import { TDeliverySetting } from './delivery.interfaces';
+import { DeliveryArea, TDeliverySetting } from './delivery.interfaces';
 
 export type TDeliveryResolution = {
 	deliveryCharge: number;
 	areaKey?: string;
 	areaName?: string;
 	isFreeDelivery: boolean;
+};
+
+/**
+ * Folds any spelling of an area onto one comparable form, so `inside-dhaka`,
+ * `Inside Dhaka` and `INSIDE_DHAKA` all match. Used for both stored settings keys and
+ * incoming request values.
+ */
+const canonicalise = (value: string): string =>
+	value
+		.trim()
+		.toUpperCase()
+		.replace(/[\s-]+/g, '_');
+
+/**
+ * Normalises a client supplied area onto the two supported values.
+ * Returns undefined for anything else, so the caller can reject it.
+ */
+export const normalizeDeliveryArea = (value?: unknown): DeliveryArea | undefined => {
+	if (typeof value !== 'string' || !value.trim()) return undefined;
+	const canonical = canonicalise(value);
+	return Object.values(DeliveryArea).find((area) => area === canonical);
 };
 
 /**
@@ -18,7 +39,7 @@ export const resolveDeliveryCharge = (
 	areaKey?: string
 ): TDeliveryResolution => {
 	const area = areaKey
-		? setting.areas.find((item) => item.key.toLowerCase() === areaKey.toLowerCase() && item.isActive)
+		? setting.areas.find((item) => canonicalise(item.key) === canonicalise(areaKey) && item.isActive)
 		: undefined;
 
 	if (areaKey && !area) {
@@ -27,8 +48,9 @@ export const resolveDeliveryCharge = (
 	}
 
 	return applyFreeDelivery(setting, itemsTotal, {
+		// the canonical key is returned, so an order always stores `INSIDE_DHAKA` / `OUTSIDE_DHAKA`
 		deliveryCharge: area ? area.charge : setting.defaultCharge,
-		areaKey: area?.key,
+		areaKey: area ? canonicalise(area.key) : undefined,
 		areaName: area?.name,
 		isFreeDelivery: false
 	});

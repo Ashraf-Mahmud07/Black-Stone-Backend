@@ -15,11 +15,17 @@ const previewCheckout: RequestHandler = catchAsync(async (req, res) => {
 });
 
 const createOrder: RequestHandler = catchAsync(async (req, res) => {
-	const result = await OrderServices.createOrder(req.body, req.userData);
+	// an `Idempotency-Key` header makes a retried request return the first order
+	const headerKey = req.headers['idempotency-key'];
+	const idempotencyKey = Array.isArray(headerKey) ? headerKey[0] : headerKey;
+
+	const result = await OrderServices.createOrder({ ...req.body, idempotencyKey }, req.userData);
+
 	sendResponse(res, {
-		statusCode: httpStatus.CREATED,
+		// a duplicate is answered with 200 and the original order, not a second 201
+		statusCode: result.duplicateOf ? httpStatus.OK : httpStatus.CREATED,
 		success: true,
-		message: 'Order placed successfully!',
+		message: result.duplicateOf ? 'This order was already placed.' : 'Order placed successfully!',
 		data: result
 	});
 });

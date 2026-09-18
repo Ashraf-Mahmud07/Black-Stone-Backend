@@ -16,23 +16,39 @@ import { Product, TProductDocument, TProductVariantDocument } from './product.mo
 
 export type TStockOperationResult = { success: boolean; failedLine?: TStockLine };
 
-const toVariant = (doc: TProductVariantDocument): TProductVariant => ({
-	id: String(doc._id),
-	sku: doc.sku,
-	color: doc.color,
-	size: doc.size,
-	design: doc.design,
-	attributes: doc.attributes instanceof Map ? Object.fromEntries(doc.attributes) : doc.attributes,
-	price: doc.price,
-	discountPrice: doc.discountPrice,
-	stock: doc.stock ?? 0,
-	image: doc.image,
-	isActive: doc.isActive ?? true
-});
+/**
+ * `fallbackImage` is the product's primary image. It is only used to fill `displayImage`,
+ * so the storefront can render a colour swatch without a second request and without
+ * implementing the fallback itself.
+ */
+const toVariant = (doc: TProductVariantDocument, fallbackImage?: TImage): TProductVariant => {
+	const images = doc.images ?? [];
+	const ownImage = doc.image ?? images[0] ?? undefined;
+
+	return {
+		id: String(doc._id),
+		sku: doc.sku,
+		color: doc.color,
+		colorBn: doc.colorBn,
+		size: doc.size,
+		design: doc.design,
+		attributes: doc.attributes instanceof Map ? Object.fromEntries(doc.attributes) : doc.attributes,
+		price: doc.price,
+		discountPrice: doc.discountPrice,
+		stock: doc.stock ?? 0,
+		image: doc.image ?? undefined,
+		images,
+		displayImage: ownImage ?? fallbackImage,
+		hasOwnImage: Boolean(ownImage),
+		isActive: doc.isActive ?? true
+	};
+};
 
 const toProduct = (doc: TProductDocument): TProduct => {
 	const category = doc.category as { _id?: unknown; name?: string; slug?: string } | undefined;
 	const isPopulated = Boolean(category && typeof category === 'object' && 'name' in category);
+	const images = doc.images ?? [];
+	const primaryImage = images.find((image) => image.isPrimary) ?? images[0];
 
 	return {
 		id: String(doc._id),
@@ -49,7 +65,7 @@ const toProduct = (doc: TProductDocument): TProduct => {
 		price: doc.price,
 		discountPrice: doc.discountPrice,
 		sku: doc.sku,
-		variants: (doc.variants ?? []).map(toVariant),
+		variants: (doc.variants ?? []).map((variant) => toVariant(variant, primaryImage)),
 		specifications: doc.specifications ?? [],
 		stock: doc.stock ?? 0,
 		status: doc.status,
@@ -215,6 +231,22 @@ const updateVariant = async (
 	return findById(id);
 };
 
+/** Replaces a variant's media. `image` is unset (not nulled) when the variant has none left. */
+const setVariantMedia = async (
+	id: string,
+	variantId: string,
+	media: { image?: TImage; images: TImage[] }
+): Promise<TProduct | null> => {
+	if (!isValidId(id) || !isValidId(variantId)) return null;
+
+	const update = media.image
+		? { $set: { 'variants.$.image': media.image, 'variants.$.images': media.images } }
+		: { $set: { 'variants.$.images': media.images }, $unset: { 'variants.$.image': '' } };
+
+	await Product.updateOne({ _id: id, isDeleted: false, 'variants._id': variantId }, update);
+	return findById(id);
+};
+
 const removeVariant = async (id: string, variantId: string): Promise<TProduct | null> => {
 	if (!isValidId(id) || !isValidId(variantId)) return null;
 	await Product.updateOne({ _id: id, isDeleted: false }, { $pull: { variants: { _id: variantId } } });
@@ -375,6 +407,7 @@ const ProductRepository = {
 	softDelete,
 	addVariant,
 	updateVariant,
+	setVariantMedia,
 	removeVariant,
 	replaceVariants,
 	addImages,

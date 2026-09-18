@@ -2531,6 +2531,181 @@
         }
       }
     },
+    "/api/products/{id}/variants/{variantId}/images": {
+      "post": {
+        "tags": [
+          "Products"
+        ],
+        "summary": "Upload images for one colour variant",
+        "description": "**Admin.** `multipart/form-data` upload of up to 6 images for a single variant, through the same Cloudinary storage the product gallery uses. The first image uploaded to a variant that has none becomes its `image` (the swatch the storefront shows when that colour is selected).",
+        "operationId": "addVariantImages",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IdParam"
+          },
+          {
+            "$ref": "#/components/parameters/VariantIdParam"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/VariantImagesUpload"
+              },
+              "encoding": {
+                "images": {
+                  "contentType": "image/jpeg, image/png, image/webp"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Variant images uploaded successfully!",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Variant images uploaded successfully!"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/Product"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "No file supplied, unsupported file type, file too large, or the 6 image limit reached.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Products"
+        ],
+        "summary": "Remove a variant image",
+        "description": "**Admin.** Removes the image from the variant and deletes the file from storage. Removing the primary image promotes the next one; a variant left with no image falls back to the product image through `displayImage`.",
+        "operationId": "removeVariantImage",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IdParam"
+          },
+          {
+            "$ref": "#/components/parameters/VariantIdParam"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RemoveProductImageRequest"
+              },
+              "example": {
+                "url": "https://res.cloudinary.com/demo/image/upload/v1712345678/black-stone/products/hijab-black.webp"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Variant image removed successfully!",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Variant image removed successfully!"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/Product"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      }
+    },
     "/api/products/{id}/videos": {
       "post": {
         "tags": [
@@ -3346,7 +3521,7 @@
                   "summary": "Logged-in customer cart",
                   "value": {
                     "source": "cart",
-                    "deliveryArea": "inside-dhaka"
+                    "deliveryArea": "INSIDE_DHAKA"
                   }
                 },
                 "buyNow": {
@@ -3359,7 +3534,7 @@
                         "quantity": 2
                       }
                     ],
-                    "deliveryArea": "outside-dhaka"
+                    "deliveryArea": "OUTSIDE_DHAKA"
                   }
                 }
               }
@@ -3410,8 +3585,8 @@
                     ],
                     "subtotal": 1700,
                     "discount": 260,
-                    "deliveryCharge": 60,
-                    "deliveryArea": "inside-dhaka",
+                    "deliveryCharge": 80,
+                    "deliveryArea": "INSIDE_DHAKA",
                     "isFreeDelivery": false,
                     "total": 1500
                   }
@@ -3453,8 +3628,20 @@
           "Checkout"
         ],
         "summary": "Place an order",
-        "description": "**Public or Customer.** Creates an order from the cart (`source: \"cart\"`), from an explicit item list (Buy Now) or as a guest without an account. Business rules: every price, discount, delivery charge and total is recalculated server side; stock is validated and reserved atomically so concurrent orders cannot oversell; product and variant snapshots are stored on the order. The order starts as `pending` with payment status `pending`, and the response contains the payment instructions for the chosen method. A cart based checkout clears the cart. Rate limited.",
+        "description": "**Public or Customer.** Creates an order from the cart (`source: \"cart\"`), from an explicit item list (Buy Now) or as a guest without an account. Checkout collects only name, mobile number, full address and delivery area. The order is always stored as **cash on delivery** - any `paymentMethod` sent is ignored. Every price, discount, delivery charge and total is recalculated server side from the catalogue and the delivery area; an `expectedTotal` that disagrees is logged and ignored, never charged. Stock is validated and reserved atomically so concurrent orders cannot oversell, and product and variant snapshots are stored on the order. The order starts as `pending` with payment status `pending`. A cart based checkout clears the cart. Send an `Idempotency-Key` header so a retry cannot create a second order. Rate limited.",
         "operationId": "createOrder",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "description": "Send a unique value (a UUID) per checkout attempt. Retrying with the same key returns the original order with 200 instead of creating a second one. Without the header, an identical basket from the same number within 2 minutes is treated as the same order.",
+            "schema": {
+              "type": "string",
+              "example": "9f1c2f2e-6a3f-4f0e-9d63-2a7b5c8e1a44"
+            }
+          }
+        ],
         "security": [],
         "requestBody": {
           "required": true,
@@ -3464,8 +3651,8 @@
                 "$ref": "#/components/schemas/CreateOrderRequest"
               },
               "examples": {
-                "guestBkash": {
-                  "summary": "Guest checkout with bKash",
+                "guestMinimal": {
+                  "summary": "Guest checkout - the four collected fields",
                   "value": {
                     "source": "direct",
                     "items": [
@@ -3477,37 +3664,27 @@
                     ],
                     "customer": {
                       "name": "Ayesha Rahman",
-                      "phone": "01712345678",
-                      "email": "ayesha@example.com"
+                      "phone": "01712345678"
                     },
                     "shippingAddress": {
-                      "name": "Ayesha Rahman",
-                      "phone": "01712345678",
-                      "address": "House 12, Road 4, Dhanmondi, Dhaka 1209",
-                      "deliveryNotes": "Call before delivery"
+                      "address": "House 12, Road 4, Dhanmondi, Dhaka 1209"
                     },
-                    "deliveryArea": "inside-dhaka",
-                    "paymentMethod": "bkash",
-                    "customerNotes": "Gift wrap please"
+                    "deliveryArea": "INSIDE_DHAKA"
                   }
                 },
-                "cartCod": {
-                  "summary": "Logged-in cart checkout with cash on delivery",
+                "cartOutsideDhaka": {
+                  "summary": "Logged-in cart checkout, outside Dhaka",
                   "value": {
                     "source": "cart",
                     "customer": {
                       "name": "Ayesha Rahman",
-                      "phone": "01712345678",
-                      "email": "ayesha@example.com"
+                      "phone": "+8801712345678"
                     },
                     "shippingAddress": {
-                      "name": "Ayesha Rahman",
-                      "phone": "01712345678",
-                      "address": "House 12, Road 4, Dhanmondi, Dhaka 1209",
+                      "address": "Holding 44, Ward 3, Rajshahi",
                       "deliveryNotes": "Call before delivery"
                     },
-                    "deliveryArea": "inside-dhaka",
-                    "paymentMethod": "cod"
+                    "deliveryArea": "OUTSIDE_DHAKA"
                   }
                 }
               }
@@ -3515,6 +3692,34 @@
           }
         },
         "responses": {
+          "200": {
+            "description": "This order was already placed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "This order was already placed."
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/CreateOrderResult"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
           "201": {
             "description": "Order placed successfully!",
             "content": {
@@ -5820,16 +6025,16 @@
                     "freeDeliveryThreshold": 3000,
                     "areas": [
                       {
-                        "key": "inside-dhaka",
+                        "key": "INSIDE_DHAKA",
                         "name": "Inside Dhaka",
-                        "charge": 60,
+                        "charge": 80,
                         "estimatedDays": "1-2 days",
                         "isActive": true
                       },
                       {
-                        "key": "outside-dhaka",
+                        "key": "OUTSIDE_DHAKA",
                         "name": "Outside Dhaka",
-                        "charge": 130,
+                        "charge": 150,
                         "estimatedDays": "3-5 days",
                         "isActive": true
                       }
@@ -5874,16 +6079,16 @@
                 "freeDeliveryThreshold": 3000,
                 "areas": [
                   {
-                    "key": "inside-dhaka",
+                    "key": "INSIDE_DHAKA",
                     "name": "Inside Dhaka",
-                    "charge": 60,
+                    "charge": 80,
                     "estimatedDays": "1-2 days",
                     "isActive": true
                   },
                   {
-                    "key": "outside-dhaka",
+                    "key": "OUTSIDE_DHAKA",
                     "name": "Outside Dhaka",
-                    "charge": 130,
+                    "charge": 150,
                     "estimatedDays": "3-5 days",
                     "isActive": true
                   }
@@ -6160,6 +6365,11 @@
           "message": {
             "type": "string",
             "example": "Password must contain at least one number!"
+          },
+          "code": {
+            "type": "string",
+            "description": "Stable key for client side translation, shaped `validation.<field.path>.<rule>` for payload errors or `<domain>.<reason>` for business errors. Map it to your own Bangla copy.",
+            "example": "validation.customer.phone.invalid"
           }
         },
         "required": [
@@ -6718,7 +6928,14 @@
           "color": {
             "type": "string",
             "nullable": true,
-            "example": "Black"
+            "example": "Black",
+            "description": "Colour name in English."
+          },
+          "colorBn": {
+            "type": "string",
+            "nullable": true,
+            "example": "কালো",
+            "description": "Colour name in Bangla, when set."
           },
           "size": {
             "type": "string",
@@ -6761,7 +6978,7 @@
           },
           "image": {
             "type": "object",
-            "description": "Stored media reference. Every file is hosted on Cloudinary.",
+            "description": "This colour's primary image. Null when it has none of its own.",
             "properties": {
               "url": {
                 "type": "string",
@@ -6815,6 +7032,74 @@
             ],
             "nullable": true
           },
+          "images": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Image"
+            },
+            "description": "Gallery for this colour (max 6)."
+          },
+          "displayImage": {
+            "type": "object",
+            "description": "What to render for this colour: its own image when it has one, otherwise the product's primary image. Use this and you never need a fallback on the client.",
+            "properties": {
+              "url": {
+                "type": "string",
+                "format": "uri",
+                "example": "https://res.cloudinary.com/demo/image/upload/v1712345678/black-stone/products/hijab-black.webp"
+              },
+              "key": {
+                "type": "string",
+                "description": "Cloudinary handle, used internally to delete the asset.",
+                "example": "upload:image:black-stone/products/hijab-black"
+              },
+              "alt": {
+                "type": "string",
+                "example": "Premium jersey hijab in black"
+              },
+              "isPrimary": {
+                "type": "boolean",
+                "example": true
+              },
+              "resourceType": {
+                "type": "string",
+                "enum": [
+                  "image",
+                  "video"
+                ],
+                "default": "image",
+                "example": "image"
+              },
+              "thumbnailUrl": {
+                "type": "string",
+                "format": "uri",
+                "description": "Poster frame, present for videos stored on Cloudinary.",
+                "example": "https://res.cloudinary.com/demo/video/upload/black-stone/products/clip.jpg"
+              },
+              "width": {
+                "type": "integer",
+                "example": 1200
+              },
+              "height": {
+                "type": "integer",
+                "example": 1600
+              },
+              "duration": {
+                "type": "number",
+                "description": "Video length in seconds.",
+                "example": 12.4
+              }
+            },
+            "required": [
+              "url"
+            ],
+            "nullable": true
+          },
+          "hasOwnImage": {
+            "type": "boolean",
+            "example": true,
+            "description": "False when `displayImage` was borrowed from the product."
+          },
           "isActive": {
             "type": "boolean",
             "example": true
@@ -6824,6 +7109,8 @@
           "id",
           "sku",
           "stock",
+          "images",
+          "hasOwnImage",
           "isActive"
         ]
       },
@@ -7640,7 +7927,12 @@
           "deliveryArea": {
             "type": "string",
             "nullable": true,
-            "example": "inside-dhaka"
+            "enum": [
+              "INSIDE_DHAKA",
+              "OUTSIDE_DHAKA"
+            ],
+            "example": "INSIDE_DHAKA",
+            "description": "Orders placed before the two-area simplification may still hold a legacy value."
           },
           "total": {
             "type": "number",
@@ -7655,7 +7947,8 @@
               "nagad",
               "cod"
             ],
-            "example": "bkash"
+            "example": "cod",
+            "description": "Always `cod` for new orders - the store is cash on delivery only. Older orders may still be `bkash` or `nagad`."
           },
           "paymentStatus": {
             "type": "string",
@@ -7705,6 +7998,7 @@
             "type": "string",
             "nullable": true,
             "maxLength": 500,
+            "description": "Deprecated: checkout no longer collects notes. Still returned for older orders.",
             "example": "Gift wrap please"
           },
           "adminNotes": {
@@ -7930,7 +8224,7 @@
           "deliveryArea": {
             "type": "string",
             "nullable": true,
-            "example": "inside-dhaka"
+            "example": "INSIDE_DHAKA"
           },
           "isFreeDelivery": {
             "type": "boolean",
@@ -8009,6 +8303,11 @@
           },
           "paymentInstructions": {
             "$ref": "#/components/schemas/PaymentInstructions"
+          },
+          "duplicateOf": {
+            "type": "string",
+            "description": "Present only when this request was a duplicate: the order number of the order that already existed. The response is 200 in that case, and `order` is that original order.",
+            "example": "BS-260919-41KGWW"
           }
         },
         "required": [
@@ -8271,7 +8570,7 @@
           "key": {
             "type": "string",
             "minLength": 2,
-            "example": "inside-dhaka",
+            "example": "INSIDE_DHAKA",
             "description": "Value to send as `deliveryArea` at checkout."
           },
           "name": {
@@ -9215,6 +9514,23 @@
           "videos"
         ]
       },
+      "VariantImagesUpload": {
+        "type": "object",
+        "properties": {
+          "images": {
+            "type": "array",
+            "maxItems": 6,
+            "items": {
+              "type": "string",
+              "format": "binary"
+            },
+            "description": "JPEG, PNG or WEBP. Maximum 5MB per file, up to 6 images per variant."
+          }
+        },
+        "required": [
+          "images"
+        ]
+      },
       "RemoveProductVideoRequest": {
         "type": "object",
         "properties": {
@@ -9349,14 +9665,18 @@
           },
           "deliveryArea": {
             "type": "string",
-            "example": "inside-dhaka",
-            "description": "Key from GET /api/delivery/settings."
+            "enum": [
+              "INSIDE_DHAKA",
+              "OUTSIDE_DHAKA"
+            ],
+            "example": "INSIDE_DHAKA",
+            "description": "Optional here - the preview falls back to the default charge until an area is chosen."
           }
         }
       },
       "CreateOrderRequest": {
         "type": "object",
-        "description": "Prices, discounts, delivery charge and totals are always recalculated server side.",
+        "description": "Checkout collects exactly four things: name, mobile number, full address and delivery area. Prices, discounts, delivery charge and totals are always recalculated server side, and the order is always stored as cash on delivery. Send an `Idempotency-Key` header to make a retry safe.",
         "properties": {
           "source": {
             "type": "string",
@@ -9401,11 +9721,16 @@
             ]
           },
           "shippingAddress": {
-            "$ref": "#/components/schemas/ShippingAddress"
+            "$ref": "#/components/schemas/ShippingAddressInput"
           },
           "deliveryArea": {
             "type": "string",
-            "example": "inside-dhaka"
+            "enum": [
+              "INSIDE_DHAKA",
+              "OUTSIDE_DHAKA"
+            ],
+            "example": "INSIDE_DHAKA",
+            "description": "Required. Drives the delivery charge; any other value is rejected with 400."
           },
           "paymentMethod": {
             "type": "string",
@@ -9414,18 +9739,62 @@
               "nagad",
               "cod"
             ],
-            "example": "bkash"
+            "description": "Accepted for backwards compatibility and then ignored - every order is stored as `cod`. Kept so online payment can be re-enabled without a migration.",
+            "example": "cod"
+          },
+          "expectedTotal": {
+            "type": "number",
+            "minimum": 0,
+            "example": 1500,
+            "description": "Optional. The total the client displayed. It is compared against the server total and a mismatch is logged, never charged - the order still succeeds at the server price."
           },
           "customerNotes": {
             "type": "string",
             "maxLength": 500,
+            "description": "Deprecated: checkout no longer collects notes. Still stored when sent.",
             "example": "Gift wrap please"
           }
         },
         "required": [
           "customer",
           "shippingAddress",
-          "paymentMethod"
+          "deliveryArea"
+        ]
+      },
+      "ShippingAddressInput": {
+        "type": "object",
+        "description": "Only `address` is required. `name` and `phone` are copied from `customer` when omitted, so checkout never collects them twice.",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 2,
+            "example": "Ayesha Rahman"
+          },
+          "phone": {
+            "type": "string",
+            "pattern": "^(?:\\+?88)?01[3-9]\\d{8}$",
+            "example": "01712345678",
+            "description": "Bangladeshi mobile number."
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "example": "ayesha@example.com"
+          },
+          "address": {
+            "type": "string",
+            "minLength": 5,
+            "description": "Full delivery address as a single line.",
+            "example": "House 12, Road 4, Dhanmondi, Dhaka 1209"
+          },
+          "deliveryNotes": {
+            "type": "string",
+            "maxLength": 500,
+            "example": "Call before delivery"
+          }
+        },
+        "required": [
+          "address"
         ]
       },
       "TrackOrderRequest": {

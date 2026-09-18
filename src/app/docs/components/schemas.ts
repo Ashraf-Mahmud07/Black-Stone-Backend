@@ -1,4 +1,5 @@
 import { UserRole } from '../../interface/auth';
+import { DeliveryArea as DeliveryAreaValues } from '../../modules/Delivery/delivery.interfaces';
 import { OrderStatus, PaymentMethod, PaymentStatus } from '../../modules/Order/order.interfaces';
 import { ProductStatus } from '../../modules/Product/product.interfaces';
 import { ReviewStatus } from '../../modules/Review/review.interfaces';
@@ -36,7 +37,13 @@ const ErrorSource: TSchemaObject = {
 			example: 'password',
 			description: 'Field the error belongs to (empty for general errors).'
 		},
-		message: { type: 'string', example: 'Password must contain at least one number!' }
+		message: { type: 'string', example: 'Password must contain at least one number!' },
+		code: {
+			type: 'string',
+			description:
+				'Stable key for client side translation, shaped `validation.<field.path>.<rule>` for payload errors or `<domain>.<reason>` for business errors. Map it to your own Bangla copy.',
+			example: 'validation.customer.phone.invalid'
+		}
 	},
 	required: ['path', 'message']
 };
@@ -251,7 +258,8 @@ const ProductVariant: TSchemaObject = {
 	properties: {
 		id: objectId,
 		sku: { type: 'string', example: 'HIJAB-JRSY01-BLK' },
-		color: { type: 'string', nullable: true, example: 'Black' },
+		color: { type: 'string', nullable: true, example: 'Black', description: 'Colour name in English.' },
+		colorBn: { type: 'string', nullable: true, example: 'কালো', description: 'Colour name in Bangla, when set.' },
 		size: { type: 'string', nullable: true, example: 'Free' },
 		design: { type: 'string', nullable: true, example: 'Plain' },
 		attributes: {
@@ -263,10 +271,22 @@ const ProductVariant: TSchemaObject = {
 		price: { ...money, nullable: true, description: 'Overrides the product price when set.' },
 		discountPrice: { ...money, nullable: true, description: 'Only applies when the variant defines its own price.' },
 		stock: { type: 'integer', minimum: 0, example: 25 },
-		image: { ...Image, nullable: true },
+		image: { ...Image, nullable: true, description: "This colour's primary image. Null when it has none of its own." },
+		images: { type: 'array', items: ref('Image'), description: 'Gallery for this colour (max 6).' },
+		displayImage: {
+			...Image,
+			nullable: true,
+			description:
+				"What to render for this colour: its own image when it has one, otherwise the product's primary image. Use this and you never need a fallback on the client."
+		},
+		hasOwnImage: {
+			type: 'boolean',
+			example: true,
+			description: 'False when `displayImage` was borrowed from the product.'
+		},
 		isActive: { type: 'boolean', example: true }
 	},
-	required: ['id', 'sku', 'stock', 'isActive']
+	required: ['id', 'sku', 'stock', 'images', 'hasOwnImage', 'isActive']
 };
 
 const Product: TSchemaObject = {
@@ -514,9 +534,21 @@ const Order: TSchemaObject = {
 			default: false,
 			description: 'True once an admin set the charge for this order, so it survives a recalculation.'
 		},
-		deliveryArea: { type: 'string', nullable: true, example: 'inside-dhaka' },
+		deliveryArea: {
+			type: 'string',
+			nullable: true,
+			enum: enumValues(DeliveryAreaValues),
+			example: DeliveryAreaValues.InsideDhaka,
+			description: 'Orders placed before the two-area simplification may still hold a legacy value.'
+		},
 		total: { ...money, example: 1500, description: 'subtotal - discount - manualDiscount + deliveryCharge.' },
-		paymentMethod: { type: 'string', enum: enumValues(PaymentMethod), example: PaymentMethod.Bkash },
+		paymentMethod: {
+			type: 'string',
+			enum: enumValues(PaymentMethod),
+			example: PaymentMethod.CashOnDelivery,
+			description:
+				'Always `cod` for new orders - the store is cash on delivery only. Older orders may still be `bkash` or `nagad`.'
+		},
 		paymentStatus: { type: 'string', enum: enumValues(PaymentStatus), example: PaymentStatus.Pending },
 		paymentId: { ...objectId, nullable: true },
 		status: { type: 'string', enum: enumValues(OrderStatus), example: OrderStatus.Pending },
@@ -526,7 +558,13 @@ const Order: TSchemaObject = {
 			items: ref('PricingHistoryEntry'),
 			description: 'Admin price adjustments, oldest first.'
 		},
-		customerNotes: { type: 'string', nullable: true, maxLength: 500, example: 'Gift wrap please' },
+		customerNotes: {
+			type: 'string',
+			nullable: true,
+			maxLength: 500,
+			description: 'Deprecated: checkout no longer collects notes. Still returned for older orders.',
+			example: 'Gift wrap please'
+		},
 		adminNotes: { type: 'string', nullable: true, example: 'Customer requested evening delivery' },
 		stockRestored: { type: 'boolean', example: false, description: 'True once cancelled stock has been returned.' },
 		cancellationReason: { type: 'string', nullable: true, example: 'Ordered the wrong colour' },
@@ -596,7 +634,7 @@ const CheckoutSummary: TSchemaObject = {
 		subtotal: { ...money, example: 1700 },
 		discount: { ...money, example: 260 },
 		deliveryCharge: { ...money, example: 60 },
-		deliveryArea: { type: 'string', nullable: true, example: 'inside-dhaka' },
+		deliveryArea: { type: 'string', nullable: true, example: 'INSIDE_DHAKA' },
 		isFreeDelivery: { type: 'boolean', example: false },
 		total: { ...money, example: 1500 }
 	},
@@ -634,7 +672,13 @@ const CreateOrderResult: TSchemaObject = {
 	type: 'object',
 	properties: {
 		order: ref('Order'),
-		paymentInstructions: ref('PaymentInstructions')
+		paymentInstructions: ref('PaymentInstructions'),
+		duplicateOf: {
+			type: 'string',
+			description:
+				'Present only when this request was a duplicate: the order number of the order that already existed. The response is 200 in that case, and `order` is that original order.',
+			example: 'BS-260919-41KGWW'
+		}
 	},
 	required: ['order', 'paymentInstructions']
 };
@@ -724,7 +768,7 @@ const DeliveryArea: TSchemaObject = {
 		key: {
 			type: 'string',
 			minLength: 2,
-			example: 'inside-dhaka',
+			example: 'INSIDE_DHAKA',
 			description: 'Value to send as `deliveryArea` at checkout.'
 		},
 		name: { type: 'string', minLength: 2, example: 'Inside Dhaka' },
