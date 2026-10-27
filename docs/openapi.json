@@ -9485,7 +9485,7 @@
         "properties": {
           "images": {
             "type": "array",
-            "maxItems": 12,
+            "maxItems": 16,
             "items": {
               "type": "string",
               "format": "binary"
@@ -9502,7 +9502,7 @@
         "properties": {
           "videos": {
             "type": "array",
-            "maxItems": 12,
+            "maxItems": 16,
             "items": {
               "type": "string",
               "format": "binary"
