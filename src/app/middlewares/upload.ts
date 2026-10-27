@@ -51,10 +51,10 @@ const wrap = (handler: TMulterHandler, maxSizeMb: number) => {
 
 export const uploadSingleImage = (field: string) => wrap(imageUploader.single(field), config.storage.max_file_size_mb);
 
-export const uploadMultipleImages = (field: string, maxCount = 12) =>
+export const uploadMultipleImages = (field: string, maxCount = 16) =>
 	wrap(imageUploader.array(field, maxCount), config.storage.max_file_size_mb);
 
-export const uploadMultipleVideos = (field: string, maxCount = 12) =>
+export const uploadMultipleVideos = (field: string, maxCount = 16) =>
 	wrap(videoUploader.array(field, maxCount), config.storage.max_video_size_mb);
 
 export default imageUploader;

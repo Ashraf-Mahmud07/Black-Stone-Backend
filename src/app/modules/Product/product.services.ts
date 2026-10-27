@@ -17,9 +17,9 @@ import {
 } from './product.interfaces';
 import ProductRepository from './product.repository';
 
-const MAX_PRODUCT_IMAGES = 12;
+const MAX_PRODUCT_IMAGES = 16;
 const MAX_VARIANT_IMAGES = 6;
-const MAX_PRODUCT_VIDEOS = 12;
+const MAX_PRODUCT_VIDEOS = 16;
 
 const buildUniqueSlug = async (source: string, currentId?: string): Promise<string> => {
 	const base = slugify(source);
